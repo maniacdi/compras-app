@@ -1,29 +1,31 @@
 {
   "expo": {
-    "name": "compras-app",
+    "name": "Compras",
     "slug": "compras-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#121212"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#121212"
+      },
+      "usesCleartextTraffic": true,
+      "package": "com.magaldi6.comprasapp"
     },
     "ios": {
       "supportsTablet": true
     },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+    "extra": {
+      "eas": {
+        "projectId": "91d9631f-a89d-47d4-a01a-790c9a77a8f7"
       }
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     }
   }
 }

@@ -1,20 +1,76 @@
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+} from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
 
-export default function App() {
+import { AppProvider, useApp } from './src/context/AppContext';
+import BienvenidaScreen from './src/screens/BienvenidaScreen';
+import ListasScreen from './src/screens/ListasScreen';
+import ElementosScreen from './src/screens/ElementosScreen';
+
+const Stack = createStackNavigator();
+
+function AppNavigator() {
+  const { pareja, colors, scheme } = useApp();
+  const theme = scheme === 'dark' ? DarkTheme : DefaultTheme;
+
+  const navTheme = {
+    ...theme,
+    colors: {
+      ...theme.colors,
+      background: colors.bg,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      primary: colors.primary,
+    },
+  };
+
+  if (!pareja) {
+    return (
+      <NavigationContainer theme={navTheme}>
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name='Bienvenida' component={BienvenidaScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer theme={navTheme}>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.text,
+          headerTitleStyle: { fontWeight: '700' },
+        }}
+      >
+        <Stack.Screen
+          name='Listas'
+          component={ListasScreen}
+          options={{ title: '🛒 Mis Listas', headerLeft: null }}
+        />
+        <Stack.Screen
+          name='Elementos'
+          component={ElementosScreen}
+          options={({ route }) => ({
+            title: `${route.params?.lista?.emoji} ${route.params?.lista?.nombre}`,
+          })}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default function App() {
+  return (
+    <AppProvider>
+      <AppNavigator />
+    </AppProvider>
+  );
+}

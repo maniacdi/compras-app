@@ -10,8 +10,8 @@ export const AppProvider = ({ children }) => {
   const scheme = useColorScheme();
   const colors = scheme === 'dark' ? COLORS_DARK : COLORS_LIGHT;
 
-  const [pareja, setPareja] = useState(null); // { _id, codigo, nombre }
-  const [alias, setAlias] = useState(''); // nombre corto del usuario
+  const [pareja, setPareja] = useState(null);
+  const [alias, setAlias] = useState('');
   const [listas, setListas] = useState([]);
   const [listaActiva, setListaActiva] = useState(null);
   const [elementos, setElementos] = useState([]);
@@ -27,6 +27,7 @@ export const AppProvider = ({ children }) => {
         const ali = await AsyncStorage.getItem('alias');
         if (cod) setPareja({ codigo: cod });
         if (ali) setAlias(ali);
+        if (cod && ali) conectarSocket(cod, ali);
       } catch {}
     };
     cargarSesion();
@@ -43,8 +44,13 @@ export const AppProvider = ({ children }) => {
       socket.emit('join_pareja', { codigo, alias: aliasUsuario });
     });
 
-    // Elementos
-    socket.on('elemento_creado', (el) => setElementos((prev) => [...prev, el]));
+    socket.on('elemento_creado', (el) =>
+      setElementos((prev) => {
+        // evitar duplicados si el propio usuario ya lo añadió
+        if (prev.find((e) => e._id === el._id)) return prev;
+        return [...prev, el];
+      }),
+    );
     socket.on('elemento_actualizado', (el) =>
       setElementos((prev) => prev.map((e) => (e._id === el._id ? el : e))),
     );
@@ -69,8 +75,12 @@ export const AppProvider = ({ children }) => {
       );
     });
 
-    // Listas
-    socket.on('lista_creada', (l) => setListas((prev) => [...prev, l]));
+    socket.on('lista_creada', (l) =>
+      setListas((prev) => {
+        if (prev.find((li) => li._id === l._id)) return prev;
+        return [...prev, l];
+      }),
+    );
     socket.on('lista_actualizada', (l) =>
       setListas((prev) => prev.map((li) => (li._id === l._id ? l : li))),
     );

@@ -140,7 +140,7 @@ function SeccionCategoria({
         <Text style={s.seccionContador}>
           {necesarios}/{items.length}
         </Text>
-        <Text style={s.seccionArrow}>{collapsed ? '▼' : '▲'}</Text>
+        <Text style={s.seccionArrow}>{collapsed ? '▲' : '▼'}</Text>
       </TouchableOpacity>
       {!collapsed &&
         items.map((el) => (

@@ -14,7 +14,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { obtenerListas, crearLista, editarLista, eliminarLista } from '../api';
 
-const EMOJIS_LISTA = ['🛒', '🧺', '🏠', '🏕️', '🎉'];
+const EMOJIS_LISTA = ['🛒', '🏠', '🏕️', '🎉', '🛠️'];
 
 export default function ListasScreen({ navigation }) {
   const {

@@ -123,11 +123,15 @@ function SeccionCategoria({
   onToggle,
   onEdit,
   onEliminar,
+  buscar,
 }) {
-  const [collapsed, setCollapsed] = useState(false);
   const catInfo = getCategoriaInfo(cat);
   const necesarios = items.filter((e) => e.necesario).length;
+  const [collapsed, setCollapsed] = useState(necesarios === 0);
   const s = styles(colors);
+
+  // Si hay búsqueda activa, descolapsar siempre
+  const isCollapsed = buscar ? false : collapsed;
 
   return (
     <View style={s.seccion}>
@@ -137,12 +141,17 @@ function SeccionCategoria({
       >
         <Text style={s.seccionEmoji}>{catInfo.emoji}</Text>
         <Text style={s.seccionNombre}>{catInfo.nombre}</Text>
-        <Text style={s.seccionContador}>
+        <Text
+          style={[
+            s.seccionContador,
+            necesarios > 0 && { color: colors.primary, fontWeight: '700' },
+          ]}
+        >
           {necesarios}/{items.length}
         </Text>
-        <Text style={s.seccionArrow}>{collapsed ? '▲' : '▼'}</Text>
+        <Text style={s.seccionArrow}>{isCollapsed ? '▶' : '▼'}</Text>
       </TouchableOpacity>
-      {!collapsed &&
+      {!isCollapsed &&
         items.map((el) => (
           <SwipeableItem
             key={el._id}
@@ -439,6 +448,7 @@ export default function ElementosScreen({ route }) {
             onToggle={handleToggle}
             onEdit={abrirModal}
             onEliminar={handleEliminar}
+            buscar={buscar}
           />
         )}
       />

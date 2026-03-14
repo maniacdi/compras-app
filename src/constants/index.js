@@ -21,6 +21,9 @@ export const CATEGORIAS = [
   { id: 'limpieza', nombre: 'Limpieza', emoji: '🧹' },
   { id: 'congelados', nombre: 'Congelados', emoji: '🧊' },
   { id: 'trastero', nombre: 'Trastero / Almacén', emoji: '🏠' },
+  { id: 'hogar', nombre: 'Hogar', emoji: '🕯️' },
+  { id: 'bicarbonato', nombre: 'Bicarbonato', emoji: '😶‍🌫️' },
+  { id: 'cocina', nombre: 'Cocina', emoji: '♨️' },
   { id: 'otros', nombre: 'Otros', emoji: '🛍️' },
 ];
 

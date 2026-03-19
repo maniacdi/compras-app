@@ -20,7 +20,7 @@ export const CATEGORIAS = [
   { id: 'cremas_cuidado', nombre: 'Cremas y Cuidado Personal', emoji: '🧴' },
   { id: 'limpieza', nombre: 'Limpieza', emoji: '🧹' },
   { id: 'congelados', nombre: 'Congelados', emoji: '🧊' },
-  { id: 'trastero', nombre: 'Trastero / Almacén', emoji: '🏠' },
+  { id: 'trastero', nombre: 'Bebé', emoji: '🍼' },
   { id: 'hogar', nombre: 'Hogar', emoji: '🕯️' },
   { id: 'bicarbonato', nombre: 'Bicarbonato', emoji: '😶‍🌫️' },
   { id: 'cocina', nombre: 'Cocina', emoji: '♨️' },
@@ -30,7 +30,6 @@ export const CATEGORIAS = [
 export const getCategoriaInfo = (id) =>
   CATEGORIAS.find((c) => c.id === id) || CATEGORIAS[CATEGORIAS.length - 1];
 
-// Colores tema oscuro
 export const COLORS_DARK = {
   bg: '#121212',
   surface: '#1E1E1E',
@@ -46,7 +45,6 @@ export const COLORS_DARK = {
   checkedText: '#777777',
 };
 
-// Colores tema claro
 export const COLORS_LIGHT = {
   bg: '#F5F5F5',
   surface: '#FFFFFF',

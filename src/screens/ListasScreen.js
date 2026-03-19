@@ -14,7 +14,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { obtenerListas, crearLista, editarLista, eliminarLista } from '../api';
 
-const EMOJIS_LISTA = ['🛒', '🏠', '🏕️', '🎉', '🛠️'];
+const EMOJIS_LISTA = ['🛒', '🏠', '🏕️', '🎉'];
 
 export default function ListasScreen({ navigation }) {
   const {
@@ -131,7 +131,7 @@ export default function ListasScreen({ navigation }) {
         <View>
           <Text style={s.saludo}>Hola, {alias} 👋</Text>
           <TouchableOpacity onPress={compartirCodigo} style={s.codigoRow}>
-            <Text style={s.codigo}>Código: {pareja?.codigo}</Text>
+            <Text style={s.codigo}>{pareja?.codigo}</Text>
             <Text style={s.compartir}> 📤</Text>
           </TouchableOpacity>
         </View>
@@ -150,37 +150,42 @@ export default function ListasScreen({ navigation }) {
       <FlatList
         data={listas}
         keyExtractor={(l) => l._id}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={s.lista}
         ListEmptyComponent={
-          <Text style={s.empty}>
-            No hay listas aún.{'\n'}Crea la primera 👇
-          </Text>
+          <View style={s.emptyContainer}>
+            <Text style={s.emptyIcon}>🧺</Text>
+            <Text style={s.emptyText}>
+              Aún no hay listas.{'\n'}Crea la primera 👇
+            </Text>
+          </View>
         }
         renderItem={({ item }) => (
-          <TouchableOpacity style={s.card} onPress={() => abrirLista(item)}>
+          <TouchableOpacity
+            style={s.card}
+            onPress={() => abrirLista(item)}
+            activeOpacity={0.7}
+          >
             <Text style={s.cardEmoji}>{item.emoji}</Text>
             <Text style={s.cardNombre}>{item.nombre}</Text>
-            <View style={s.cardActions}>
-              <TouchableOpacity
-                onPress={() => abrirModal(item)}
-                style={s.actionBtn}
-              >
-                <Text style={s.actionText}>✏️</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => confirmarEliminar(item)}
-                style={s.actionBtn}
-              >
-                <Text style={s.actionText}>🗑️</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={() => abrirModal(item)}
+              style={s.actionBtn}
+            >
+              <Text style={s.actionText}>✏️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => confirmarEliminar(item)}
+              style={s.actionBtn}
+            >
+              <Text style={s.actionText}>🗑️</Text>
+            </TouchableOpacity>
           </TouchableOpacity>
         )}
       />
 
-      {/* Botón añadir */}
+      {/* FAB */}
       <TouchableOpacity style={s.fab} onPress={() => abrirModal()}>
-        <Text style={s.fabText}>+ Nueva lista</Text>
+        <Text style={s.fabText}>+</Text>
       </TouchableOpacity>
 
       {/* Modal crear/editar */}
@@ -233,54 +238,77 @@ export default function ListasScreen({ navigation }) {
   );
 }
 
+const F = { sm: 13, md: 16, lg: 22 };
+
 const styles = (c) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
+
+    // Header
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: 20,
-      paddingTop: 50,
-      backgroundColor: c.surface,
+      paddingHorizontal: 20,
+      paddingTop: 52,
+      paddingBottom: 20,
+    },
+    saludo: { fontSize: F.lg, fontWeight: '700', color: c.text },
+    codigoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+    codigo: {
+      fontSize: F.sm,
+      color: c.textMuted,
+      letterSpacing: 1.5,
+      fontWeight: '600',
+    },
+    compartir: { fontSize: F.sm },
+    salir: { fontSize: F.sm, color: c.danger },
+
+    // Lista
+    lista: { paddingHorizontal: 16, paddingBottom: 100 },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 16,
+      paddingHorizontal: 4,
       borderBottomWidth: 1,
       borderBottomColor: c.border,
     },
-    saludo: { fontSize: 18, fontWeight: '700', color: c.text },
-    codigoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-    codigo: { fontSize: 13, color: c.textMuted },
-    compartir: { fontSize: 13 },
-    salir: { color: c.danger, fontSize: 14 },
-    card: {
-      backgroundColor: c.surface,
-      borderRadius: 14,
-      padding: 16,
-      marginBottom: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    cardEmoji: { fontSize: 32, marginRight: 14 },
-    cardNombre: { flex: 1, fontSize: 18, fontWeight: '600', color: c.text },
-    cardActions: { flexDirection: 'row', gap: 8 },
-    actionBtn: { padding: 6 },
-    actionText: { fontSize: 18 },
-    empty: {
-      textAlign: 'center',
+    cardEmoji: { fontSize: 28, marginRight: 14 },
+    cardNombre: { flex: 1, fontSize: F.md, fontWeight: '600', color: c.text },
+    actionBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+    actionText: { fontSize: F.md },
+
+    // Empty
+    emptyContainer: { alignItems: 'center', marginTop: 80 },
+    emptyIcon: { fontSize: 56, marginBottom: 16 },
+    emptyText: {
+      fontSize: F.md,
       color: c.textMuted,
-      marginTop: 60,
-      fontSize: 16,
-      lineHeight: 28,
+      textAlign: 'center',
+      lineHeight: 26,
     },
+
+    // FAB
     fab: {
-      margin: 16,
+      position: 'absolute',
+      bottom: 28,
+      right: 24,
+      width: 58,
+      height: 58,
+      borderRadius: 29,
       backgroundColor: c.primary,
-      borderRadius: 14,
-      padding: 16,
+      justifyContent: 'center',
       alignItems: 'center',
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
     },
-    fabText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    fabText: { color: '#fff', fontSize: 30, lineHeight: 34 },
+
+    // Modal
     modalOverlay: {
       flex: 1,
       backgroundColor: '#00000088',
@@ -294,19 +322,19 @@ const styles = (c) =>
       paddingBottom: 40,
     },
     modalTitulo: {
-      fontSize: 20,
+      fontSize: F.lg,
       fontWeight: '700',
       color: c.text,
       marginBottom: 16,
     },
-    label: { fontSize: 13, color: c.textSub, marginBottom: 6, marginTop: 12 },
+    label: { fontSize: F.sm, color: c.textSub, marginBottom: 6, marginTop: 12 },
     input: {
       backgroundColor: c.surfaceAlt,
       borderWidth: 1,
       borderColor: c.border,
       borderRadius: 10,
       padding: 12,
-      fontSize: 16,
+      fontSize: F.md,
       color: c.text,
     },
     emojisGrid: {
@@ -323,7 +351,7 @@ const styles = (c) =>
     },
     emojiBtnSel: {
       borderColor: c.primary,
-      backgroundColor: c.primaryDark + '33',
+      backgroundColor: c.primaryDark + '22',
     },
     emojiOpt: { fontSize: 24 },
     modalBtns: { flexDirection: 'row', gap: 12, marginTop: 20 },
@@ -335,7 +363,7 @@ const styles = (c) =>
       borderColor: c.border,
       alignItems: 'center',
     },
-    btnCancelText: { color: c.text },
+    btnCancelText: { fontSize: F.md, color: c.text },
     btnSave: {
       flex: 1,
       padding: 14,
@@ -343,5 +371,5 @@ const styles = (c) =>
       backgroundColor: c.primary,
       alignItems: 'center',
     },
-    btnSaveText: { color: '#fff', fontWeight: '700' },
+    btnSaveText: { fontSize: F.md, color: '#fff', fontWeight: '700' },
   });

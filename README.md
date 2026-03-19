@@ -4,13 +4,13 @@ App móvil de listas de compra compartidas en pareja. Sincronización en tiempo 
 
 ## Stack
 
-| Tecnología | Uso |
-|------------|-----|
-| React Native + Expo | App móvil |
-| Socket.io client | Sync en tiempo real |
-| Axios | Llamadas a la API |
-| AsyncStorage | Persistencia de sesión local |
-| React Navigation | Navegación entre pantallas |
+| Tecnología          | Uso                          |
+| ------------------- | ---------------------------- |
+| React Native + Expo | App móvil                    |
+| Socket.io client    | Sync en tiempo real          |
+| Axios               | Llamadas a la API            |
+| AsyncStorage        | Persistencia de sesión local |
+| React Navigation    | Navegación entre pantallas   |
 
 ## Funcionalidades
 
@@ -48,6 +48,7 @@ compras-app/
 ## Puesta en marcha en desarrollo
 
 ### Requisitos
+
 - Node.js >= 20.19
 - Expo Go instalado en el móvil ([Play Store](https://play.google.com/store/apps/details?id=host.exp.exponent))
 - Backend corriendo (ver repo `compras-backend`)
@@ -99,4 +100,4 @@ No hay registro ni login. El primer usuario crea una "pareja" y obtiene un **có
 
 ## Categorías disponibles
 
-🍎 Frutas · 🥦 Verduras · 🥩 Carnes y Pescados · 🥛 Lácteos y Huevos · 🍞 Panadería · 🍪 Galletas y Dulces · 🍫 Chocolate · ☕ Café e Infusiones · 🧃 Bebidas · 🍚 Arroz y Pasta · 🫘 Legumbres · 🥜 Frutos Secos · 🥫 Conservas y Salsas · 🫙 Especias y Condimentos · 🧴 Cremas y Cuidado Personal · 🧹 Limpieza · 🧊 Congelados · 🏠 Trastero / Almacén · 🛍️ Otros
+🍎 Frutas · 🥦 Verduras · 🥩 Carnes y Pescados · 🥛 Lácteos y Huevos · 🍞 Panadería · 🍪 Galletas y Dulces · 🍫 Chocolate · ☕ Café e Infusiones · 🧃 Bebidas · 🍚 Arroz y Pasta · 🫘 Legumbres · 🥜 Frutos Secos · 🥫 Conservas y Salsas · 🫙 Especias y Condimentos · 🧴 Cremas y Cuidado Personal · 🧹 Limpieza · 🧊 Congelados · 🍼 Bebé · 🛍️ Otros · 🕯️ Hogar · ♨️ Cocina

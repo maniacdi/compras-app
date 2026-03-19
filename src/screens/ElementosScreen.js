@@ -25,12 +25,15 @@ import {
   desmarcarTodos,
 } from '../api';
 
+const F = { sm: 13, md: 16, lg: 22 };
+
 const FILTROS_NECESARIO = [
   { id: 'todos', label: 'Todos' },
   { id: 'true', label: '🛒 Necesito' },
   { id: 'false', label: '✅ Tengo' },
 ];
 
+// ── Swipeable item ────────────────────────────────────────────
 function SwipeableItem({ el, colors, onToggle, onEdit, onEliminar }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const s = itemStyles(colors);
@@ -116,6 +119,7 @@ function SwipeableItem({ el, colors, onToggle, onEdit, onEliminar }) {
   );
 }
 
+// ── Sección colapsable ────────────────────────────────────────
 function SeccionCategoria({
   cat,
   items,
@@ -130,7 +134,6 @@ function SeccionCategoria({
   const [collapsed, setCollapsed] = useState(necesarios === 0);
   const s = styles(colors);
 
-  // Si hay búsqueda activa, descolapsar siempre
   const isCollapsed = buscar ? false : collapsed;
 
   return (
@@ -166,6 +169,71 @@ function SeccionCategoria({
   );
 }
 
+// ── Selector de categoría (desplegable) ───────────────────────
+function CategoriaSelector({ value, onChange, colors }) {
+  const [open, setOpen] = useState(false);
+  const selected = getCategoriaInfo(value);
+  const s = styles(colors);
+
+  return (
+    <>
+      <TouchableOpacity style={s.dropdown} onPress={() => setOpen(true)}>
+        <Text style={s.dropdownText}>
+          {selected.emoji} {selected.nombre}
+        </Text>
+        <Text style={s.dropdownArrow}>▼</Text>
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType='slide'>
+        <View style={s.modalOverlay}>
+          <View style={[s.modalBox, { maxHeight: '80%' }]}>
+            <View style={s.modalHeaderRow}>
+              <Text style={s.modalTitulo}>Categoría</Text>
+              <TouchableOpacity onPress={() => setOpen(false)}>
+                <Text style={s.cerrarBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {CATEGORIAS.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[
+                    s.catRow,
+                    c.id === value && {
+                      backgroundColor: colors.primary + '18',
+                    },
+                  ]}
+                  onPress={() => {
+                    onChange(c.id);
+                    setOpen(false);
+                  }}
+                >
+                  <Text style={s.catRowEmoji}>{c.emoji}</Text>
+                  <Text
+                    style={[
+                      s.catRowNombre,
+                      c.id === value && {
+                        color: colors.primary,
+                        fontWeight: '700',
+                      },
+                    ]}
+                  >
+                    {c.nombre}
+                  </Text>
+                  {c.id === value && (
+                    <Text style={{ color: colors.primary }}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
+// ── Pantalla principal ────────────────────────────────────────
 export default function ElementosScreen({ route }) {
   const { lista } = route.params;
   const { colors, alias, elementos, setElementos, emitir } = useApp();
@@ -436,9 +504,12 @@ export default function ElementosScreen({ route }) {
         keyExtractor={([cat]) => cat}
         contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
         ListEmptyComponent={
-          <Text style={s.empty}>
-            No hay elementos.{'\n'}Añade el primero con el botón + 👇
-          </Text>
+          <View style={s.emptyContainer}>
+            <Text style={s.emptyIcon}>🛍️</Text>
+            <Text style={s.emptyText}>
+              No hay elementos.{'\n'}Añade el primero con el + 👇
+            </Text>
+          </View>
         }
         renderItem={({ item: [cat, items] }) => (
           <SeccionCategoria
@@ -460,14 +531,21 @@ export default function ElementosScreen({ route }) {
       {/* Modal filtro categorías */}
       <Modal visible={modalFiltro} transparent animationType='slide'>
         <View style={s.modalOverlay}>
-          <View style={[s.modalBox]}>
+          <View style={[s.modalBox, { maxHeight: '80%' }]}>
             <View style={s.modalHeaderRow}>
               <Text style={s.modalTitulo}>Filtrar categorías</Text>
-              {catsFiltro.length > 0 && (
-                <TouchableOpacity onPress={() => setCatsFiltro([])}>
-                  <Text style={s.limpiarFiltro}>Limpiar</Text>
+              <View
+                style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}
+              >
+                {catsFiltro.length > 0 && (
+                  <TouchableOpacity onPress={() => setCatsFiltro([])}>
+                    <Text style={s.limpiarFiltro}>Limpiar</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setModalFiltro(false)}>
+                  <Text style={s.cerrarBtn}>✕</Text>
                 </TouchableOpacity>
-              )}
+              </View>
             </View>
             <ScrollView>
               {catsConElementos.map((c) => {
@@ -475,19 +553,22 @@ export default function ElementosScreen({ route }) {
                 return (
                   <TouchableOpacity
                     key={c.id}
-                    style={s.catRow}
+                    style={[
+                      s.catRow,
+                      activa && { backgroundColor: colors.primary + '18' },
+                    ]}
                     onPress={() => toggleCatFiltro(c.id)}
                   >
                     <Text style={s.catRowEmoji}>{c.emoji}</Text>
                     <Text
                       style={[
                         s.catRowNombre,
-                        activa && { color: colors.primary },
+                        activa && { color: colors.primary, fontWeight: '700' },
                       ]}
                     >
                       {c.nombre}
                     </Text>
-                    <Text style={s.catCheck}>{activa ? '☑️' : '⬜'}</Text>
+                    {activa && <Text style={{ color: colors.primary }}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}
@@ -506,9 +587,15 @@ export default function ElementosScreen({ route }) {
       <Modal visible={modal} transparent animationType='slide'>
         <View style={s.modalOverlay}>
           <ScrollView style={s.modalBox} keyboardShouldPersistTaps='handled'>
-            <Text style={s.modalTitulo}>
-              {editando ? 'Editar elemento' : 'Añadir elemento'}
-            </Text>
+            <View style={s.modalHeaderRow}>
+              <Text style={s.modalTitulo}>
+                {editando ? 'Editar elemento' : 'Añadir elemento'}
+              </Text>
+              <TouchableOpacity onPress={() => setModal(false)}>
+                <Text style={s.cerrarBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
             <Text style={s.label}>Nombre</Text>
             <TextInput
               style={s.input}
@@ -518,6 +605,7 @@ export default function ElementosScreen({ route }) {
               onChangeText={setFNombre}
               autoFocus
             />
+
             <Text style={s.label}>Emoji</Text>
             <TextInput
               style={[s.input, { fontSize: 28, textAlign: 'center' }]}
@@ -525,32 +613,14 @@ export default function ElementosScreen({ route }) {
               onChangeText={setFEmoji}
               maxLength={2}
             />
+
             <Text style={s.label}>Categoría</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View
-                style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}
-              >
-                {CATEGORIAS.map((c) => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[
-                      s.filterChip,
-                      fCategoria === c.id && s.filterChipActive,
-                    ]}
-                    onPress={() => setFCategoria(c.id)}
-                  >
-                    <Text
-                      style={[
-                        s.filterChipText,
-                        fCategoria === c.id && s.filterChipTextActive,
-                      ]}
-                    >
-                      {c.emoji} {c.nombre}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+            <CategoriaSelector
+              value={fCategoria}
+              onChange={setFCategoria}
+              colors={colors}
+            />
+
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1 }}>
                 <Text style={s.label}>Cantidad</Text>
@@ -590,15 +660,17 @@ export default function ElementosScreen({ route }) {
                 </ScrollView>
               </View>
             </View>
+
             <Text style={s.label}>Notas (opcional)</Text>
             <TextInput
               style={s.input}
-              placeholder='Ej: Marca Hacendado, sin lactosa...'
+              placeholder='Ej: sin lactosa, marca Hacendado...'
               placeholderTextColor={colors.textMuted}
               value={fNotas}
               onChangeText={setFNotas}
               multiline
             />
+
             <View style={s.modalBtns}>
               <TouchableOpacity
                 style={s.btnCancel}
@@ -622,7 +694,7 @@ const styles = (c) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
     resumen: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
-    resumenText: { fontSize: 13, color: c.textSub },
+    resumenText: { fontSize: F.sm, color: c.textSub },
     resumenNum: { fontWeight: '700', color: c.primary },
     searchRow: { padding: 12, paddingBottom: 0 },
     search: {
@@ -631,7 +703,7 @@ const styles = (c) =>
       borderColor: c.border,
       borderRadius: 10,
       padding: 10,
-      fontSize: 15,
+      fontSize: F.md,
       color: c.text,
     },
     filtersRow: { marginTop: 8 },
@@ -650,7 +722,7 @@ const styles = (c) =>
       backgroundColor: c.surface,
     },
     filterChipActive: { backgroundColor: c.primary, borderColor: c.primary },
-    filterChipText: { fontSize: 13, color: c.textSub },
+    filterChipText: { fontSize: F.sm, color: c.textSub },
     filterChipTextActive: { color: '#fff', fontWeight: '600' },
     filterDivider: { width: 1, height: 24, backgroundColor: c.border },
     actionsRow: { flexDirection: 'row', gap: 8, padding: 12, paddingTop: 8 },
@@ -662,7 +734,7 @@ const styles = (c) =>
       borderColor: c.border,
       alignItems: 'center',
     },
-    actionChipText: { fontSize: 12, color: c.textSub },
+    actionChipText: { fontSize: F.sm, color: c.textSub },
     seccion: { marginBottom: 8 },
     seccionHeader: {
       flexDirection: 'row',
@@ -670,37 +742,42 @@ const styles = (c) =>
       paddingVertical: 8,
       paddingHorizontal: 4,
     },
-    seccionEmoji: { fontSize: 16, marginRight: 6 },
+    seccionEmoji: { fontSize: F.md, marginRight: 6 },
     seccionNombre: {
       flex: 1,
-      fontSize: 13,
+      fontSize: F.sm,
       fontWeight: '700',
       color: c.textMuted,
       textTransform: 'uppercase',
       letterSpacing: 0.8,
     },
-    seccionContador: { fontSize: 12, color: c.textMuted, marginRight: 6 },
+    seccionContador: { fontSize: F.sm, color: c.textMuted, marginRight: 6 },
     seccionArrow: { fontSize: 10, color: c.textMuted },
-    empty: {
-      textAlign: 'center',
+    emptyContainer: { alignItems: 'center', marginTop: 80 },
+    emptyIcon: { fontSize: 56, marginBottom: 16 },
+    emptyText: {
+      fontSize: F.md,
       color: c.textMuted,
-      marginTop: 60,
-      fontSize: 16,
-      lineHeight: 28,
+      textAlign: 'center',
+      lineHeight: 26,
     },
     fab: {
       position: 'absolute',
-      bottom: 24,
+      bottom: 28,
       right: 24,
-      width: 60,
-      height: 60,
-      borderRadius: 30,
+      width: 58,
+      height: 58,
+      borderRadius: 29,
       backgroundColor: c.primary,
       justifyContent: 'center',
       alignItems: 'center',
       elevation: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
     },
-    fabText: { color: '#fff', fontSize: 32, lineHeight: 36 },
+    fabText: { color: '#fff', fontSize: 30, lineHeight: 34 },
     modalOverlay: {
       flex: 1,
       backgroundColor: '#00000088',
@@ -711,8 +788,7 @@ const styles = (c) =>
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       padding: 24,
-      maxHeight: '90%',
-      height: '90%',
+      maxHeight: '92%',
     },
     modalHeaderRow: {
       flexDirection: 'row',
@@ -720,28 +796,40 @@ const styles = (c) =>
       alignItems: 'center',
       marginBottom: 12,
     },
-    modalTitulo: { fontSize: 20, fontWeight: '700', color: c.text },
-    limpiarFiltro: { color: c.danger, fontSize: 14 },
+    modalTitulo: { fontSize: F.lg, fontWeight: '700', color: c.text },
+    cerrarBtn: { fontSize: F.md, color: c.textMuted, paddingHorizontal: 4 },
+    limpiarFiltro: { color: c.danger, fontSize: F.sm },
     catRow: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: c.border,
+      paddingHorizontal: 8,
+      borderRadius: 8,
+      marginBottom: 2,
     },
-    catRowEmoji: { fontSize: 22, marginRight: 12 },
-    catRowNombre: { flex: 1, fontSize: 16, color: c.text },
-    catCheck: { fontSize: 20 },
-    label: { fontSize: 13, color: c.textSub, marginBottom: 6, marginTop: 12 },
+    catRowEmoji: { fontSize: F.lg, marginRight: 12 },
+    catRowNombre: { flex: 1, fontSize: F.md, color: c.text },
+    label: { fontSize: F.sm, color: c.textSub, marginBottom: 6, marginTop: 12 },
     input: {
       backgroundColor: c.surfaceAlt,
       borderWidth: 1,
       borderColor: c.border,
       borderRadius: 10,
       padding: 12,
-      fontSize: 16,
+      fontSize: F.md,
       color: c.text,
     },
+    dropdown: {
+      backgroundColor: c.surfaceAlt,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      padding: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    dropdownText: { flex: 1, fontSize: F.md, color: c.text },
+    dropdownArrow: { fontSize: F.sm, color: c.textMuted },
     modalBtns: { flexDirection: 'row', gap: 12, marginTop: 20 },
     btnCancel: {
       flex: 1,
@@ -751,7 +839,7 @@ const styles = (c) =>
       borderColor: c.border,
       alignItems: 'center',
     },
-    btnCancelText: { color: c.text },
+    btnCancelText: { fontSize: F.md, color: c.text },
     btnSave: {
       flex: 1,
       padding: 14,
@@ -763,11 +851,11 @@ const styles = (c) =>
       flex: 1,
       padding: 14,
       borderRadius: 10,
-      maxHeight: 48,
+      minHeight: 48,
       backgroundColor: c.primary,
       alignItems: 'center',
     },
-    btnSaveText: { color: '#fff', fontWeight: '700' },
+    btnSaveText: { fontSize: F.md, color: '#fff', fontWeight: '700' },
   });
 
 const itemStyles = (c) =>
@@ -784,7 +872,7 @@ const itemStyles = (c) =>
       alignItems: 'center',
       borderRadius: 12,
     },
-    swipeBgText: { fontSize: 22 },
+    swipeBgText: { fontSize: F.lg },
     item: {
       backgroundColor: c.surface,
       borderRadius: 12,
@@ -795,19 +883,19 @@ const itemStyles = (c) =>
     itemMain: { flexDirection: 'row', alignItems: 'center', padding: 12 },
     itemEmoji: { fontSize: 28, marginRight: 12 },
     itemInfo: { flex: 1 },
-    itemNombre: { fontSize: 16, fontWeight: '600', color: c.text },
+    itemNombre: { fontSize: F.md, fontWeight: '600', color: c.text },
     itemNombreChecked: {
       color: c.checkedText,
       textDecorationLine: 'line-through',
     },
-    itemNotas: { fontSize: 12, color: c.textMuted, marginTop: 2 },
+    itemNotas: { fontSize: F.sm, color: c.textMuted, marginTop: 2 },
     itemRight: { alignItems: 'flex-end', gap: 2 },
-    itemCantidad: { fontSize: 13, fontWeight: '600', color: c.textSub },
+    itemCantidad: { fontSize: F.sm, fontWeight: '600', color: c.textSub },
     itemAutor: { fontSize: 11, color: c.textMuted },
     checkmark: {
       position: 'absolute',
       right: 12,
-      fontSize: 16,
+      fontSize: F.md,
       color: c.primary,
     },
   });

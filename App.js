@@ -3,7 +3,7 @@ import {
   DefaultTheme,
   DarkTheme,
 } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 
 import { AppProvider, useApp } from './src/context/AppContext';
@@ -11,7 +11,7 @@ import BienvenidaScreen from './src/screens/BienvenidaScreen';
 import ListasScreen from './src/screens/ListasScreen';
 import ElementosScreen from './src/screens/ElementosScreen';
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 function AppNavigator() {
   const { pareja, colors, scheme } = useApp();

@@ -9,6 +9,8 @@ jobs:
   update:
     name: EAS Update
     runs-on: ubuntu-latest
+    env:
+      CI: 1
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -23,7 +25,7 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Fix reanimated
-        run: npx expo install react-native-reanimated --non-interactive
+        run: npx expo install react-native-reanimated
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
@@ -32,8 +34,6 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Publish update
-        env:
-          CI: 1
         run: |
           eas update \
             --branch preview \

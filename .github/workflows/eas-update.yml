@@ -1,0 +1,37 @@
+name: EAS Update
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update:
+    name: EAS Update
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish update
+        run: |
+          eas update \
+            --branch preview \
+            --message "${{ github.event.head_commit.message }}" \
+            --environment preview \
+            --non-interactive

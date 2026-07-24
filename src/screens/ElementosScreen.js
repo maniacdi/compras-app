@@ -147,12 +147,7 @@ function SeccionCategoria({
       >
         <Text style={s.seccionEmoji}>{catInfo.emoji}</Text>
         <Text style={s.seccionNombre}>{catInfo.nombre}</Text>
-        <Text
-          style={[
-            s.seccionContador,
-            necesarios > 0 && { color: colors.primary, fontWeight: '700' },
-          ]}
-        >
+        <Text style={s.seccionContador}>
           {necesarios}/{items.length}
         </Text>
         <Text style={s.seccionArrow}>{isCollapsed ? '▶' : '▼'}</Text>
@@ -203,7 +198,7 @@ function CategoriaSelector({ value, onChange, colors }) {
                   style={[
                     s.catRow,
                     c.id === value && {
-                      backgroundColor: colors.primary + '18',
+                      backgroundColor: colors.primary,
                     },
                   ]}
                   onPress={() => {
@@ -216,15 +211,15 @@ function CategoriaSelector({ value, onChange, colors }) {
                     style={[
                       s.catRowNombre,
                       c.id === value && {
-                        color: colors.primary,
-                        fontWeight: '700',
+                        color: '#fff',
+                        fontWeight: '800',
                       },
                     ]}
                   >
                     {c.nombre}
                   </Text>
                   {c.id === value && (
-                    <Text style={{ color: colors.primary }}>✓</Text>
+                    <Text style={{ color: '#fff' }}>✓</Text>
                   )}
                 </TouchableOpacity>
               ))}
@@ -579,7 +574,7 @@ export default function ElementosScreen({ route }) {
                     key={c.id}
                     style={[
                       s.catRow,
-                      activa && { backgroundColor: colors.primary + '18' },
+                      activa && { backgroundColor: colors.primary },
                     ]}
                     onPress={() => toggleCatFiltro(c.id)}
                   >
@@ -587,12 +582,12 @@ export default function ElementosScreen({ route }) {
                     <Text
                       style={[
                         s.catRowNombre,
-                        activa && { color: colors.primary, fontWeight: '700' },
+                        activa && { color: '#fff', fontWeight: '800' },
                       ]}
                     >
                       {c.nombre}
                     </Text>
-                    {activa && <Text style={{ color: colors.primary }}>✓</Text>}
+                    {activa && <Text style={{ color: '#fff' }}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}
@@ -742,9 +737,9 @@ const styles = (c) =>
     searchRow: { padding: 12, paddingBottom: 0 },
     search: {
       backgroundColor: c.surface,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: c.border,
-      borderRadius: 10,
+      borderRadius: 0,
       padding: 10,
       fontSize: F.md,
       color: c.text,
@@ -759,8 +754,8 @@ const styles = (c) =>
     filterChip: {
       paddingHorizontal: 12,
       paddingVertical: 6,
-      borderRadius: 20,
-      borderWidth: 1,
+      borderRadius: 0,
+      borderWidth: 1.5,
       borderColor: c.border,
       backgroundColor: c.surface,
     },
@@ -772,8 +767,8 @@ const styles = (c) =>
     actionChip: {
       flex: 1,
       padding: 8,
-      borderRadius: 8,
-      borderWidth: 1,
+      borderRadius: 0,
+      borderWidth: 1.5,
       borderColor: c.border,
       alignItems: 'center',
     },
@@ -782,19 +777,30 @@ const styles = (c) =>
     seccionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 8,
+      paddingVertical: 10,
       paddingHorizontal: 4,
+      borderBottomWidth: 2,
+      borderBottomColor: c.text,
     },
     seccionEmoji: { fontSize: F.md, marginRight: 6 },
     seccionNombre: {
       flex: 1,
       fontSize: F.sm,
-      fontWeight: '700',
-      color: c.textMuted,
+      fontWeight: '800',
+      color: c.text,
       textTransform: 'uppercase',
       letterSpacing: 0.8,
     },
-    seccionContador: { fontSize: F.sm, color: c.textMuted, marginRight: 6 },
+    seccionContador: {
+      fontSize: F.sm,
+      fontWeight: '800',
+      color: '#fff',
+      backgroundColor: c.primary,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      marginRight: 6,
+      overflow: 'hidden',
+    },
     seccionArrow: { fontSize: 10, color: c.textMuted },
     emptyContainer: { alignItems: 'center', marginTop: 80 },
     emptyIcon: { fontSize: 56, marginBottom: 16 },
@@ -810,15 +816,12 @@ const styles = (c) =>
       right: 24,
       width: 58,
       height: 58,
-      borderRadius: 29,
+      borderRadius: 0,
+      borderWidth: 2,
+      borderColor: c.text,
       backgroundColor: c.primary,
       justifyContent: 'center',
       alignItems: 'center',
-      elevation: 4,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
     },
     fabText: { color: '#fff', fontSize: 30, lineHeight: 34 },
     modalOverlay: {
@@ -828,8 +831,10 @@ const styles = (c) =>
     },
     modalBox: {
       backgroundColor: c.surface,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderTopWidth: 2,
+      borderColor: c.border,
       padding: 24,
       maxHeight: '92%',
     },
@@ -839,7 +844,12 @@ const styles = (c) =>
       alignItems: 'center',
       marginBottom: 12,
     },
-    modalTitulo: { fontSize: F.lg, fontWeight: '700', color: c.text },
+    modalTitulo: {
+      fontSize: F.lg,
+      fontWeight: '800',
+      letterSpacing: 0.5,
+      color: c.text,
+    },
     cerrarBtn: { fontSize: F.md, color: c.textMuted, paddingHorizontal: 4 },
     limpiarFiltro: { color: c.danger, fontSize: F.sm },
     catRow: {
@@ -847,26 +857,34 @@ const styles = (c) =>
       alignItems: 'center',
       paddingVertical: 12,
       paddingHorizontal: 8,
-      borderRadius: 8,
+      borderRadius: 0,
       marginBottom: 2,
     },
     catRowEmoji: { fontSize: F.lg, marginRight: 12 },
     catRowNombre: { flex: 1, fontSize: F.md, color: c.text },
-    label: { fontSize: F.sm, color: c.textSub, marginBottom: 6, marginTop: 12 },
+    label: {
+      fontSize: F.sm,
+      color: c.textSub,
+      marginBottom: 6,
+      marginTop: 12,
+      fontWeight: '800',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+    },
     input: {
       backgroundColor: c.surfaceAlt,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: c.border,
-      borderRadius: 10,
+      borderRadius: 0,
       padding: 12,
       fontSize: F.md,
       color: c.text,
     },
     dropdown: {
       backgroundColor: c.surfaceAlt,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: c.border,
-      borderRadius: 10,
+      borderRadius: 0,
       padding: 12,
       flexDirection: 'row',
       alignItems: 'center',
@@ -877,8 +895,8 @@ const styles = (c) =>
     btnCancel: {
       flex: 1,
       padding: 14,
-      borderRadius: 10,
-      borderWidth: 1,
+      borderRadius: 0,
+      borderWidth: 2,
       borderColor: c.border,
       alignItems: 'center',
     },
@@ -886,14 +904,14 @@ const styles = (c) =>
     btnSave: {
       flex: 1,
       padding: 14,
-      borderRadius: 10,
+      borderRadius: 0,
       backgroundColor: c.primary,
       alignItems: 'center',
     },
     btnApply: {
       flex: 1,
       padding: 14,
-      borderRadius: 10,
+      borderRadius: 0,
       minHeight: 48,
       backgroundColor: c.primary,
       alignItems: 'center',
@@ -903,7 +921,7 @@ const styles = (c) =>
 
 const itemStyles = (c) =>
   StyleSheet.create({
-    swipeContainer: { marginBottom: 6, borderRadius: 12, overflow: 'hidden' },
+    swipeContainer: { borderRadius: 0, overflow: 'hidden' },
     swipeBg: {
       position: 'absolute',
       right: 0,
@@ -913,20 +931,21 @@ const itemStyles = (c) =>
       backgroundColor: c.danger,
       justifyContent: 'center',
       alignItems: 'center',
-      borderRadius: 12,
+      borderRadius: 0,
     },
     swipeBgText: { fontSize: F.lg },
     item: {
       backgroundColor: c.surface,
-      borderRadius: 12,
-      borderWidth: 1,
+      borderRadius: 0,
+      borderWidth: 0,
+      borderBottomWidth: 1.5,
       borderColor: c.border,
     },
-    itemChecked: { backgroundColor: c.checked, borderColor: c.checked },
+    itemChecked: { backgroundColor: c.checked, borderColor: c.border },
     itemMain: { flexDirection: 'row', alignItems: 'center', padding: 12 },
     itemEmoji: { fontSize: 28, marginRight: 12 },
     itemInfo: { flex: 1 },
-    itemNombre: { fontSize: F.md, fontWeight: '600', color: c.text },
+    itemNombre: { fontSize: F.md, fontWeight: '700', color: c.text },
     itemNombreChecked: {
       color: c.checkedText,
       textDecorationLine: 'line-through',

@@ -60,6 +60,8 @@ export const COLORS_LIGHT = {
   checkedText: '#AAAAAA',
 };
 
+export const UI = { radius: 0, border: 1.5, borderStrong: 2 };
+
 export const UNIDADES = [
   'ud',
   'kg',

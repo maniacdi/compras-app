@@ -45,9 +45,14 @@ function AppNavigator() {
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack.Navigator
         screenOptions={{
-          headerStyle: { backgroundColor: colors.surface },
+          headerStyle: {
+            backgroundColor: colors.surface,
+            borderBottomWidth: 2,
+            borderBottomColor: colors.border,
+          },
+          headerShadowVisible: false,
           headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: '700' },
+          headerTitleStyle: { fontWeight: '800', letterSpacing: 0.5 },
         }}
       >
         <Stack.Screen

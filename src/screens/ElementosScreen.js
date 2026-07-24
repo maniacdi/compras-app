@@ -67,17 +67,25 @@ function SwipeableItem({ el, colors, onToggle, onEdit, onEliminar }) {
   const cerrar = () =>
     Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
 
+  const bgOpacity = translateX.interpolate({
+    inputRange: [-72, -8, 0],
+    outputRange: [1, 1, 0],
+    extrapolate: 'clamp',
+  });
+
   return (
     <View style={s.swipeContainer}>
-      <TouchableOpacity
-        style={s.swipeBg}
-        onPress={() => {
-          cerrar();
-          onEliminar(el);
-        }}
-      >
-        <Text style={s.swipeBgText}>🗑️</Text>
-      </TouchableOpacity>
+      <Animated.View style={[s.swipeBg, { opacity: bgOpacity }]}>
+        <TouchableOpacity
+          style={s.swipeBgTouch}
+          onPress={() => {
+            cerrar();
+            onEliminar(el);
+          }}
+        >
+          <Text style={s.swipeBgText}>🗑️</Text>
+        </TouchableOpacity>
+      </Animated.View>
       <Animated.View
         style={[
           s.item,
@@ -147,7 +155,12 @@ function SeccionCategoria({
       >
         <Text style={s.seccionEmoji}>{catInfo.emoji}</Text>
         <Text style={s.seccionNombre}>{catInfo.nombre}</Text>
-        <Text style={s.seccionContador}>
+        <Text
+          style={[
+            s.seccionContador,
+            necesarios === 0 && s.seccionContadorVacio,
+          ]}
+        >
           {necesarios}/{items.length}
         </Text>
         <Text style={s.seccionArrow}>{isCollapsed ? '▶' : '▼'}</Text>
@@ -801,6 +814,10 @@ const styles = (c) =>
       marginRight: 6,
       overflow: 'hidden',
     },
+    seccionContadorVacio: {
+      color: c.textMuted,
+      backgroundColor: c.surfaceAlt,
+    },
     seccionArrow: { fontSize: 10, color: c.textMuted },
     emptyContainer: { alignItems: 'center', marginTop: 80 },
     emptyIcon: { fontSize: 56, marginBottom: 16 },
@@ -929,9 +946,12 @@ const itemStyles = (c) =>
       bottom: 0,
       width: 72,
       backgroundColor: c.danger,
+      borderRadius: 0,
+    },
+    swipeBgTouch: {
+      flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      borderRadius: 0,
     },
     swipeBgText: { fontSize: F.lg },
     item: {

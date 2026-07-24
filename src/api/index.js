@@ -47,3 +47,24 @@ export const desmarcarTodos = (listaId) =>
 
 export const reordenarElementos = (listaId, elementos) =>
   api.patch(`/api/elementos/${listaId}/reordenar`, { elementos }).then((r) => r.data);
+
+// ── OpenFoodFacts (API externa) ──────────────────────────────
+const OFF_BASE = 'https://world.openfoodfacts.org';
+
+export const buscarProducto = async (ean) => {
+  const url = `${OFF_BASE}/api/v2/product/${encodeURIComponent(
+    ean,
+  )}.json?fields=product_name,product_name_es,brands`;
+  try {
+    const { data } = await axios.get(url, { timeout: 10000 });
+    if (data?.status !== 1 || !data.product) {
+      return { encontrado: false, nombre: '', marca: '' };
+    }
+    const p = data.product;
+    const nombre = (p.product_name_es || p.product_name || '').trim();
+    const marca = (p.brands || '').split(',')[0].trim();
+    return { encontrado: Boolean(nombre) || Boolean(marca), nombre, marca };
+  } catch {
+    return { encontrado: false, nombre: '', marca: '' };
+  }
+};

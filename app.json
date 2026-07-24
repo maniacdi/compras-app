@@ -27,6 +27,14 @@
         "projectId": "91d9631f-a89d-47d4-a01a-790c9a77a8f7"
       }
     },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "La app usa la cámara para escanear el código de barras de los productos."
+        }
+      ]
+    ],
     "runtimeVersion": {
       "policy": "appVersion"
     },

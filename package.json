@@ -16,6 +16,7 @@
     "@react-navigation/stack": "^7.8.4",
     "axios": "^1.13.6",
     "expo": "~55.0.4",
+    "expo-camera": "~55.0.9",
     "expo-status-bar": "~55.0.4",
     "expo-updates": "~55.0.12",
     "react": "19.2.0",

@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { getCategoriaInfo, CATEGORIAS, UNIDADES } from '../constants';
+import IconPicker from '../components/IconPicker';
+import ScannerModal from '../components/ScannerModal';
 import {
   obtenerElementos,
   crearElemento,
@@ -23,6 +25,7 @@ import {
   eliminarElemento,
   marcarTodos,
   desmarcarTodos,
+  buscarProducto,
 } from '../api';
 
 const F = { sm: 13, md: 16, lg: 22 };
@@ -251,6 +254,8 @@ export default function ElementosScreen({ route }) {
   const [fCantidad, setFCantidad] = useState('1');
   const [fUnidad, setFUnidad] = useState('ud');
   const [fNotas, setFNotas] = useState('');
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [buscandoOFF, setBuscandoOFF] = useState(false);
 
   const s = styles(colors);
 
@@ -335,12 +340,31 @@ export default function ElementosScreen({ route }) {
   const abrirModal = (el = null) => {
     setEditando(el);
     setFNombre(el?.nombre || '');
-    setFEmoji(el?.emoji || '🛍️');
     setFCategoria(el?.categoria || 'otros');
+    setFEmoji(el?.emoji || getCategoriaInfo(el?.categoria || 'otros').emoji);
     setFCantidad(String(el?.cantidad || '1'));
     setFUnidad(el?.unidad || 'ud');
     setFNotas(el?.notas || '');
     setModal(true);
+  };
+
+  const handleCodigo = async (ean) => {
+    setScannerVisible(false);
+    setBuscandoOFF(true);
+    try {
+      const { encontrado, nombre, marca } = await buscarProducto(ean);
+      if (encontrado) {
+        if (nombre) setFNombre(nombre);
+        if (marca && !fNotas.trim()) setFNotas(marca);
+      } else {
+        Alert.alert(
+          'No encontrado',
+          'No hay datos de ese producto. Complétalo a mano.',
+        );
+      }
+    } finally {
+      setBuscandoOFF(false);
+    }
   };
 
   const guardar = async () => {
@@ -591,9 +615,16 @@ export default function ElementosScreen({ route }) {
               <Text style={s.modalTitulo}>
                 {editando ? 'Editar elemento' : 'Añadir elemento'}
               </Text>
-              <TouchableOpacity onPress={() => setModal(false)}>
-                <Text style={s.cerrarBtn}>✕</Text>
-              </TouchableOpacity>
+              <View
+                style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}
+              >
+                <TouchableOpacity onPress={() => setScannerVisible(true)}>
+                  <Text style={{ fontSize: 22 }}>📷</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setModal(false)}>
+                  <Text style={s.cerrarBtn}>✕</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <Text style={s.label}>Nombre</Text>
@@ -605,13 +636,18 @@ export default function ElementosScreen({ route }) {
               onChangeText={setFNombre}
               autoFocus
             />
+            {buscandoOFF && (
+              <Text style={{ color: colors.textMuted, marginTop: 6 }}>
+                Buscando producto…
+              </Text>
+            )}
 
-            <Text style={s.label}>Emoji</Text>
-            <TextInput
-              style={[s.input, { fontSize: 28, textAlign: 'center' }]}
+            <Text style={s.label}>Icono</Text>
+            <IconPicker
               value={fEmoji}
-              onChangeText={setFEmoji}
-              maxLength={2}
+              onChange={setFEmoji}
+              categoriaEmoji={getCategoriaInfo(fCategoria).emoji}
+              colors={colors}
             />
 
             <Text style={s.label}>Categoría</Text>
@@ -686,6 +722,13 @@ export default function ElementosScreen({ route }) {
           </ScrollView>
         </View>
       </Modal>
+
+      <ScannerModal
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onCodigo={handleCodigo}
+        colors={colors}
+      />
     </View>
   );
 }

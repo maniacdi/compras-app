@@ -106,6 +106,38 @@ Modificados:
 - `src/screens/ElementosScreen.js` — botón escáner + wiring OFF + IconPicker
 - `package.json` — `expo-camera`
 
+## Feature 3 — Restyle minimalista brutalista
+
+Dirección visual: la app parece un **ticket de caja / etiqueta de estantería**.
+Plano, duro, tipografía protagonista. NO se cambian las categorías ni la lógica.
+
+### Tokens (añadir a `src/constants/index.js`)
+
+- `UI = { radius: 0, border: 1.5, borderStrong: 2 }`.
+- Corners cuadrados en todo. Sin `elevation` ni `shadow*`.
+- Filas separadas por hairline (`borderBottomWidth`), sin fondos de card ni
+  `borderRadius` en items.
+- Color: base monocroma (negro/blanco/gris ya existente) + un solo acento
+  (`primary` verde `#4CAF50`), usado con moderación: estado activo y contadores.
+  Se eliminan los tintes translúcidos tipo `primary + '18'`/`'22'`.
+- Tipo: headers y labels en MAYÚSCULAS, `fontWeight '800'`, con `letterSpacing`.
+
+### Signature
+
+- Cabeceras de sección de categoría: full-width, regla inferior gruesa, contador
+  en **bloque sólido invertido** (fondo `primary`, texto blanco).
+- FAB: botón **cuadrado** con borde duro (no círculo con sombra).
+- Botones (Guardar/Cancelar/acciones): planos, borde `2px`, sin radio, label en
+  MAYÚSCULAS.
+
+### Pantallas afectadas
+
+- `ElementosScreen.js`: items, secciones, chips de filtro, modales, FAB, inputs.
+- `ListasScreen.js`: header, filas de lista (hairline en vez de card), FAB, modal.
+- `BienvenidaScreen.js`: botones e inputs cuadrados, título en mayúsculas.
+- `App.js`: header de navegación (títulos en mayúsculas, sin sombra de card).
+- Componentes nuevos (`IconPicker`, `ScannerModal`) nacen ya con este estilo.
+
 ## Consideraciones
 
 - **Permisos cámara**: añadir uso en `app.json` (plugin `expo-camera` /

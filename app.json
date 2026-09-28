@@ -16,7 +16,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#121212"
       },
-      "usesCleartextTraffic": true,
       "package": "com.magaldi6.comprasapp"
     },
     "ios": {

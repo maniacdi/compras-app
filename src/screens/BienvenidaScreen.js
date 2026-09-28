@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { useStyles } from '../hooks/useStyles';
 import { crearPareja, obtenerPareja } from '../api';
 
 export default function BienvenidaScreen() {
@@ -22,10 +23,9 @@ export default function BienvenidaScreen() {
   const [nombre, setNombre] = useState('');
   const [cargando, setCargando] = useState(false);
 
-  const s = styles(colors);
+  const s = useStyles(styles);
 
   const handleCrear = async () => {
-    console.log('Intentando crear pareja...');
     if (!alias.trim())
       return Alert.alert(
         'Falta tu nombre',
@@ -35,9 +35,7 @@ export default function BienvenidaScreen() {
     try {
       const res = await crearPareja(nombre || 'Mi Lista');
       await guardarSesion(res.pareja, alias.trim());
-    } catch (e) {
-      console.log('Error:', e.message, e.response?.data);
-
+    } catch {
       Alert.alert(
         'Error',
         'No se pudo crear la pareja. Comprueba tu conexión.',
@@ -62,7 +60,7 @@ export default function BienvenidaScreen() {
     try {
       const res = await obtenerPareja(codigo.trim().toUpperCase());
       await guardarSesion(res.pareja, alias.trim());
-    } catch (e) {
+    } catch {
       Alert.alert(
         'Código incorrecto',
         'No se encontró ninguna pareja con ese código.',

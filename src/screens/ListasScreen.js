@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,14 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  RefreshControl,
   Share,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { obtenerListas, crearLista, editarLista, eliminarLista } from '../api';
+import { useStyles } from '../hooks/useStyles';
+import { crearLista, editarLista, eliminarLista } from '../api';
+import { esErrorDeRed } from '../logic/outbox';
+import EstadoConexion from '../components/EstadoConexion';
 
 const EMOJIS_LISTA = ['🛒', '🏠', '🏕️', '🎉'];
 
@@ -23,32 +27,35 @@ export default function ListasScreen({ navigation }) {
     alias,
     listas,
     setListas,
-    setListaActiva,
+    cargarListas,
     emitir,
+    mostrarToast,
     cerrarSesion,
   } = useApp();
   const [cargando, setCargando] = useState(true);
+  const [refrescando, setRefrescando] = useState(false);
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const [nombre, setNombre] = useState('');
   const [emojiSel, setEmojiSel] = useState('🛒');
 
-  const s = styles(colors);
+  const s = useStyles(styles);
 
   useEffect(() => {
-    cargar();
-  }, []);
+    cargarListas().finally(() => setCargando(false));
+  }, [cargarListas]);
 
-  const cargar = async () => {
-    try {
-      const res = await obtenerListas(pareja.codigo);
-      setListas(res.listas);
-    } catch {
-      Alert.alert('Error', 'No se pudieron cargar las listas.');
-    } finally {
-      setCargando(false);
-    }
+  const onRefresh = async () => {
+    setRefrescando(true);
+    await cargarListas();
+    setRefrescando(false);
   };
+
+  // Las listas solo se modifican con conexión.
+  const avisarError = (e, mensaje) =>
+    mostrarToast(
+      esErrorDeRed(e) ? 'Sin conexión: prueba cuando tengas red' : mensaje,
+    );
 
   const compartirCodigo = () => {
     Share.share({
@@ -84,8 +91,8 @@ export default function ListasScreen({ navigation }) {
         emitir('lista_creada', res.lista);
       }
       setModal(false);
-    } catch {
-      Alert.alert('Error', 'No se pudo guardar la lista.');
+    } catch (e) {
+      avisarError(e, 'No se pudo guardar la lista');
     }
   };
 
@@ -103,8 +110,8 @@ export default function ListasScreen({ navigation }) {
               await eliminarLista(lista._id);
               setListas((prev) => prev.filter((l) => l._id !== lista._id));
               emitir('lista_eliminada', { listaId: lista._id });
-            } catch {
-              Alert.alert('Error', 'No se pudo eliminar la lista.');
+            } catch (e) {
+              avisarError(e, 'No se pudo eliminar la lista');
             }
           },
         },
@@ -112,12 +119,9 @@ export default function ListasScreen({ navigation }) {
     );
   };
 
-  const abrirLista = (lista) => {
-    setListaActiva(lista);
-    navigation.navigate('Elementos', { lista });
-  };
+  const abrirLista = (lista) => navigation.navigate('Elementos', { lista });
 
-  if (cargando)
+  if (cargando && listas.length === 0)
     return (
       <View style={[s.container, { justifyContent: 'center' }]}>
         <ActivityIndicator size='large' color={colors.primary} />
@@ -126,6 +130,7 @@ export default function ListasScreen({ navigation }) {
 
   return (
     <View style={s.container}>
+      <EstadoConexion />
       {/* Header */}
       <View style={s.header}>
         <View>
@@ -151,6 +156,14 @@ export default function ListasScreen({ navigation }) {
         data={listas}
         keyExtractor={(l) => l._id}
         contentContainerStyle={s.lista}
+        refreshControl={
+          <RefreshControl
+            refreshing={refrescando}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
         ListEmptyComponent={
           <View style={s.emptyContainer}>
             <Text style={s.emptyIcon}>🧺</Text>
@@ -189,7 +202,12 @@ export default function ListasScreen({ navigation }) {
       </TouchableOpacity>
 
       {/* Modal crear/editar */}
-      <Modal visible={modal} transparent animationType='slide'>
+      <Modal
+        visible={modal}
+        transparent
+        animationType='slide'
+        onRequestClose={() => setModal(false)}
+      >
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
             <Text style={s.modalTitulo}>

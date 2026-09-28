@@ -37,3 +37,11 @@ export const moverCategoria = (orden, from, to) => {
   copia.splice(destino, 0, item);
   return copia;
 };
+
+// Reordena solo las categorías visibles (`presentes`, ya en su nuevo orden)
+// dejando las demás en su sitio dentro del orden completo.
+export const reordenarPresentes = (completo, presentes) => {
+  const set = new Set(presentes);
+  let i = 0;
+  return completo.map((id) => (set.has(id) ? presentes[i++] : id));
+};

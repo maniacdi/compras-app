@@ -1,34 +1,38 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  TextInput,
-  Modal,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
   ActivityIndicator,
+  Alert,
+  FlatList,
+  RefreshControl,
   ScrollView,
-  Animated,
-  PanResponder,
+  Share,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { useKeepAwake } from 'expo-keep-awake';
+import { getCategoriaInfo } from '../constants';
 import { useApp } from '../context/AppContext';
-import { getCategoriaInfo, CATEGORIAS, UNIDADES } from '../constants';
-import IconPicker from '../components/IconPicker';
-import ScannerModal from '../components/ScannerModal';
-import {
-  obtenerElementos,
-  crearElemento,
-  editarElemento,
-  toggleElemento,
-  eliminarElemento,
-  marcarTodos,
-  desmarcarTodos,
-  buscarProducto,
-} from '../api';
-
-const F = { sm: 13, md: 16, lg: 22 };
+import { useStyles } from '../hooks/useStyles';
+import { useOrdenCategorias } from '../hooks/useOrdenCategorias';
+import { agruparPorCategoria, reordenarPresentes } from '../logic/orden';
+import { nuevoIdTemporal } from '../logic/outbox';
+import { textoCompartir } from '../logic/compartir';
+import EstadoConexion from '../components/EstadoConexion';
+import { DURACION_TOAST } from '../components/Toast';
+import { estilos } from '../components/elementos/estilos';
+import SeccionCategoria from '../components/elementos/SeccionCategoria';
+import ElementoFormModal from '../components/elementos/ElementoFormModal';
+import FiltroCategoriasModal from '../components/elementos/FiltroCategoriasModal';
+import OrdenarCategoriasModal from '../components/elementos/OrdenarCategoriasModal';
 
 const FILTROS_NECESARIO = [
   { id: 'todos', label: 'Todos' },
@@ -36,944 +40,452 @@ const FILTROS_NECESARIO = [
   { id: 'false', label: '✅ Tengo' },
 ];
 
-// ── Swipeable item ────────────────────────────────────────────
-function SwipeableItem({ el, colors, onToggle, onEdit, onEliminar }) {
-  const translateX = useRef(new Animated.Value(0)).current;
-  const s = itemStyles(colors);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dx) > 10 && Math.abs(g.dy) < 20,
-      onPanResponderMove: (_, g) => {
-        if (g.dx < 0) translateX.setValue(Math.max(g.dx, -80));
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dx < -50) {
-          Animated.spring(translateX, {
-            toValue: -72,
-            useNativeDriver: true,
-          }).start();
-        } else {
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    }),
-  ).current;
-
-  const cerrar = () =>
-    Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
-
-  const bgOpacity = translateX.interpolate({
-    inputRange: [-72, -8, 0],
-    outputRange: [1, 1, 0],
-    extrapolate: 'clamp',
-  });
-
-  return (
-    <View style={s.swipeContainer}>
-      <Animated.View style={[s.swipeBg, { opacity: bgOpacity }]}>
-        <TouchableOpacity
-          style={s.swipeBgTouch}
-          onPress={() => {
-            cerrar();
-            onEliminar(el);
-          }}
-        >
-          <Text style={s.swipeBgText}>🗑️</Text>
-        </TouchableOpacity>
-      </Animated.View>
-      <Animated.View
-        style={[
-          s.item,
-          !el.necesario && s.itemChecked,
-          { transform: [{ translateX }] },
-        ]}
-        {...panResponder.panHandlers}
-      >
-        <TouchableOpacity
-          style={s.itemMain}
-          onPress={() => {
-            cerrar();
-            onToggle(el);
-          }}
-          onLongPress={() => {
-            cerrar();
-            onEdit(el);
-          }}
-          activeOpacity={0.7}
-        >
-          <Text style={s.itemEmoji}>{el.emoji}</Text>
-          <View style={s.itemInfo}>
-            <Text style={[s.itemNombre, !el.necesario && s.itemNombreChecked]}>
-              {el.nombre}
-            </Text>
-            {el.notas ? <Text style={s.itemNotas}>{el.notas}</Text> : null}
-          </View>
-          <View style={s.itemRight}>
-            <Text
-              style={[s.itemCantidad, !el.necesario && s.itemNombreChecked]}
-            >
-              {el.cantidad} {el.unidad}
-            </Text>
-            {el.creadoPor ? (
-              <Text style={s.itemAutor}>{el.creadoPor}</Text>
-            ) : null}
-          </View>
-          {!el.necesario && <Text style={s.checkmark}>✓</Text>}
-        </TouchableOpacity>
-      </Animated.View>
-    </View>
-  );
+function PantallaEncendida() {
+  useKeepAwake();
+  return null;
 }
 
-// ── Sección colapsable ────────────────────────────────────────
-function SeccionCategoria({
-  cat,
-  items,
-  colors,
-  onToggle,
-  onEdit,
-  onEliminar,
-  buscar,
-}) {
-  const catInfo = getCategoriaInfo(cat);
-  const necesarios = items.filter((e) => e.necesario).length;
-  const [collapsed, setCollapsed] = useState(necesarios === 0);
-  const s = styles(colors);
-
-  const isCollapsed = buscar ? false : collapsed;
-
-  return (
-    <View style={s.seccion}>
-      <TouchableOpacity
-        style={s.seccionHeader}
-        onPress={() => setCollapsed(!collapsed)}
-      >
-        <Text style={s.seccionEmoji}>{catInfo.emoji}</Text>
-        <Text style={s.seccionNombre}>{catInfo.nombre}</Text>
-        <Text
-          style={[
-            s.seccionContador,
-            necesarios === 0 && s.seccionContadorVacio,
-          ]}
-        >
-          {necesarios}/{items.length}
-        </Text>
-        <Text style={s.seccionArrow}>{isCollapsed ? '▶' : '▼'}</Text>
-      </TouchableOpacity>
-      {!isCollapsed &&
-        items.map((el) => (
-          <SwipeableItem
-            key={el._id}
-            el={el}
-            colors={colors}
-            onToggle={onToggle}
-            onEdit={onEdit}
-            onEliminar={onEliminar}
-          />
-        ))}
-    </View>
-  );
-}
-
-// ── Selector de categoría (desplegable) ───────────────────────
-function CategoriaSelector({ value, onChange, colors }) {
-  const [open, setOpen] = useState(false);
-  const selected = getCategoriaInfo(value);
-  const s = styles(colors);
-
-  return (
-    <>
-      <TouchableOpacity style={s.dropdown} onPress={() => setOpen(true)}>
-        <Text style={s.dropdownText}>
-          {selected.emoji} {selected.nombre}
-        </Text>
-        <Text style={s.dropdownArrow}>▼</Text>
-      </TouchableOpacity>
-
-      <Modal visible={open} transparent animationType='slide'>
-        <View style={s.modalOverlay}>
-          <View style={[s.modalBox, { maxHeight: '80%' }]}>
-            <View style={s.modalHeaderRow}>
-              <Text style={s.modalTitulo}>Categoría</Text>
-              <TouchableOpacity onPress={() => setOpen(false)}>
-                <Text style={s.cerrarBtn}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              {CATEGORIAS.map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[
-                    s.catRow,
-                    c.id === value && {
-                      backgroundColor: colors.primary,
-                    },
-                  ]}
-                  onPress={() => {
-                    onChange(c.id);
-                    setOpen(false);
-                  }}
-                >
-                  <Text style={s.catRowEmoji}>{c.emoji}</Text>
-                  <Text
-                    style={[
-                      s.catRowNombre,
-                      c.id === value && {
-                        color: '#fff',
-                        fontWeight: '800',
-                      },
-                    ]}
-                  >
-                    {c.nombre}
-                  </Text>
-                  {c.id === value && (
-                    <Text style={{ color: '#fff' }}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    </>
-  );
-}
-
-// ── Pantalla principal ────────────────────────────────────────
-export default function ElementosScreen({ route }) {
+export default function ElementosScreen({ route, navigation }) {
   const { lista } = route.params;
-  const { colors, alias, elementos, setElementos, emitir } = useApp();
+  const listaId = lista._id;
+  const {
+    colors,
+    alias,
+    listas,
+    elementos,
+    listaAbiertaId,
+    abrirLista,
+    cerrarLista,
+    recargar,
+    mutarElemento,
+    resolverId,
+    mostrarToast,
+  } = useApp();
+  const s = useStyles(estilos);
+  const [orden, setOrden] = useOrdenCategorias(listaId);
 
-  const [cargando, setCargando] = useState(true);
+  const [cargandoInicial, setCargandoInicial] = useState(true);
+  const [refrescando, setRefrescando] = useState(false);
   const [buscar, setBuscar] = useState('');
   const [filtroNec, setFiltroNec] = useState('todos');
   const [catsFiltro, setCatsFiltro] = useState([]);
   const [modalFiltro, setModalFiltro] = useState(false);
-  const [modal, setModal] = useState(false);
-  const [editando, setEditando] = useState(null);
-  const [fNombre, setFNombre] = useState('');
-  const [fEmoji, setFEmoji] = useState('🛍️');
-  const [fCategoria, setFCategoria] = useState('otros');
-  const [fCantidad, setFCantidad] = useState('1');
-  const [fUnidad, setFUnidad] = useState('ud');
-  const [fNotas, setFNotas] = useState('');
-  const [scannerVisible, setScannerVisible] = useState(false);
-  const [buscandoOFF, setBuscandoOFF] = useState(false);
-
-  const s = styles(colors);
+  // Categorías a ordenar (copia al abrir) o null si el modal está cerrado.
+  const [ordenando, setOrdenando] = useState(null);
+  const [form, setForm] = useState({ visible: false, elemento: null });
+  const [modoCompra, setModoCompra] = useState(false);
+  const [idsCompra, setIdsCompra] = useState(() => new Set());
+  // Borrados en espera de "Deshacer": id → timeout.
+  const [ocultos, setOcultos] = useState(() => new Set());
+  const borrados = useRef(new Map());
 
   useEffect(() => {
-    cargar();
-  }, []);
+    abrirLista(listaId).finally(() => setCargandoInicial(false));
+    return () => cerrarLista();
+  }, [listaId, abrirLista, cerrarLista]);
 
-  const cargar = async () => {
-    try {
-      const res = await obtenerElementos(lista._id);
-      setElementos(res.elementos);
-    } catch {
-      Alert.alert('Error', 'No se pudieron cargar los elementos.');
-    } finally {
-      setCargando(false);
+  // ── Lista renombrada o eliminada por la pareja ───────────
+  const listaActual = listas.find((l) => l._id === listaId);
+  const existia = useRef(false);
+  useEffect(() => {
+    if (listaActual) existia.current = true;
+    else if (existia.current) {
+      mostrarToast('La lista se ha eliminado');
+      navigation.goBack();
     }
-  };
+  }, [listaActual, navigation, mostrarToast]);
+  const infoLista = listaActual || lista;
 
-  const elementosFiltrados = useMemo(() => {
-    return elementos
-      .filter((e) => e.lista === lista._id)
-      .filter((e) =>
-        filtroNec === 'todos' ? true : String(e.necesario) === filtroNec,
-      )
-      .filter((e) =>
-        catsFiltro.length === 0 ? true : catsFiltro.includes(e.categoria),
-      )
-      .filter((e) =>
-        buscar ? e.nombre.toLowerCase().includes(buscar.toLowerCase()) : true,
-      )
-      .sort((a, b) => {
-        if (a.categoria < b.categoria) return -1;
-        if (a.categoria > b.categoria) return 1;
-        return a.orden - b.orden || a.nombre.localeCompare(b.nombre);
-      });
-  }, [elementos, filtroNec, catsFiltro, buscar, lista._id]);
+  // ── Datos derivados ──────────────────────────────────────
+  const delaLista = useMemo(() => {
+    if (listaAbiertaId !== listaId) return [];
+    // Un borrado pendiente puede guardar el id temporal de algo ya creado.
+    const ocultosReales = new Set([...ocultos].map(resolverId));
+    return elementos.filter(
+      (e) => e.lista === listaId && !ocultosReales.has(e._id),
+    );
+  }, [elementos, listaAbiertaId, listaId, ocultos, resolverId]);
+  const pendientes = delaLista.filter((e) => e.necesario).length;
 
-  const secciones = useMemo(() => {
-    const grupos = {};
-    elementosFiltrados.forEach((e) => {
-      if (!grupos[e.categoria]) grupos[e.categoria] = [];
-      grupos[e.categoria].push(e);
+  const visibles = useMemo(() => {
+    if (modoCompra) return delaLista.filter((e) => e.necesario);
+    const texto = buscar.toLowerCase();
+    return delaLista.filter(
+      (e) =>
+        (filtroNec === 'todos' || String(e.necesario) === filtroNec) &&
+        (catsFiltro.length === 0 || catsFiltro.includes(e.categoria)) &&
+        (!texto || e.nombre.toLowerCase().includes(texto)),
+    );
+  }, [delaLista, modoCompra, buscar, filtroNec, catsFiltro]);
+
+  const secciones = useMemo(
+    () => agruparPorCategoria(visibles, orden),
+    [visibles, orden],
+  );
+
+  const catsPresentes = useMemo(
+    () => agruparPorCategoria(delaLista, orden).map(([cat]) => cat),
+    [delaLista, orden],
+  );
+
+  const progreso = useMemo(() => {
+    const enCompra = delaLista.filter(
+      (e) => idsCompra.has(e._id) || e.necesario,
+    );
+    const hechos = enCompra.filter((e) => !e.necesario).length;
+    return { hechos, total: enCompra.length };
+  }, [delaLista, idsCompra]);
+
+  // ── Acciones ─────────────────────────────────────────────
+  const handleToggle = useCallback(
+    (el) => {
+      const op = { tipo: 'toggle', elementoId: el._id, listaId };
+      mutarElemento(op);
+      if (modoCompra && el.necesario) {
+        mostrarToast(`✓ ${el.nombre}`, {
+          label: 'DESHACER',
+          onPress: () => mutarElemento(op),
+        });
+      }
+    },
+    [listaId, modoCompra, mutarElemento, mostrarToast],
+  );
+
+  const mostrar = (id) =>
+    setOcultos((prev) => {
+      const n = new Set(prev);
+      n.delete(id);
+      return n;
     });
-    return Object.entries(grupos);
-  }, [elementosFiltrados]);
 
-  const totalLista = elementos.filter((e) => e.lista === lista._id);
-  const pendientes = totalLista.filter((e) => e.necesario).length;
+  const confirmarBorrado = useCallback(
+    (id) => {
+      clearTimeout(borrados.current.get(id));
+      borrados.current.delete(id);
+      mutarElemento({ tipo: 'eliminar', elementoId: id, listaId });
+      mostrar(id);
+    },
+    [listaId, mutarElemento],
+  );
 
-  const handleToggle = async (el) => {
-    try {
-      const res = await toggleElemento(el._id);
-      setElementos((prev) =>
-        prev.map((e) => (e._id === el._id ? res.elemento : e)),
-      );
-      emitir('elemento_toggle', res.elemento);
-    } catch {}
-  };
-
-  const handleEliminar = (el) => {
-    Alert.alert('Eliminar', `¿Eliminar "${el.nombre}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await eliminarElemento(el._id);
-            setElementos((prev) => prev.filter((e) => e._id !== el._id));
-            emitir('elemento_eliminado', {
-              elementoId: el._id,
-              listaId: lista._id,
-            });
-          } catch {
-            Alert.alert('Error', 'No se pudo eliminar.');
-          }
+  const handleEliminar = useCallback(
+    (el) => {
+      setOcultos((prev) => new Set(prev).add(el._id));
+      const t = setTimeout(() => confirmarBorrado(el._id), DURACION_TOAST);
+      borrados.current.set(el._id, t);
+      mostrarToast(`Eliminado «${el.nombre}»`, {
+        label: 'DESHACER',
+        onPress: () => {
+          clearTimeout(borrados.current.get(el._id));
+          borrados.current.delete(el._id);
+          mostrar(el._id);
         },
-      },
-    ]);
-  };
+      });
+    },
+    [confirmarBorrado, mostrarToast],
+  );
 
-  const abrirModal = (el = null) => {
-    setEditando(el);
-    setFNombre(el?.nombre || '');
-    setFCategoria(el?.categoria || 'otros');
-    setFEmoji(el?.emoji || getCategoriaInfo(el?.categoria || 'otros').emoji);
-    setFCantidad(String(el?.cantidad || '1'));
-    setFUnidad(el?.unidad || 'ud');
-    setFNotas(el?.notas || '');
-    setModal(true);
-  };
-
-  const handleCodigo = async (ean) => {
-    setScannerVisible(false);
-    setBuscandoOFF(true);
-    try {
-      const { encontrado, nombre, marca } = await buscarProducto(ean);
-      if (encontrado) {
-        if (nombre) setFNombre(nombre);
-        if (marca && !fNotas.trim()) setFNotas(marca);
-      } else {
-        Alert.alert(
-          'No encontrado',
-          'No hay datos de ese producto. Complétalo a mano.',
-        );
-      }
-    } finally {
-      setBuscandoOFF(false);
-    }
-  };
-
-  const guardar = async () => {
-    if (!fNombre.trim()) return Alert.alert('Falta el nombre');
-    const datos = {
-      nombre: fNombre.trim(),
-      emoji: fEmoji,
-      categoria: fCategoria,
-      cantidad: parseFloat(fCantidad) || 1,
-      unidad: fUnidad,
-      notas: fNotas.trim(),
-      creadoPor: alias,
+  // Al salir de la pantalla, los borrados pendientes se ejecutan ya.
+  useEffect(() => {
+    const pendientesBorrar = borrados.current;
+    return () => {
+      [...pendientesBorrar.keys()].forEach((id) => {
+        clearTimeout(pendientesBorrar.get(id));
+        mutarElemento({ tipo: 'eliminar', elementoId: id, listaId });
+      });
+      pendientesBorrar.clear();
     };
-    try {
-      if (editando) {
-        const res = await editarElemento(editando._id, datos);
-        setElementos((prev) =>
-          prev.map((e) => (e._id === editando._id ? res.elemento : e)),
-        );
-        emitir('elemento_actualizado', res.elemento);
-      } else {
-        const res = await crearElemento(lista._id, datos);
-        setElementos((prev) => [...prev, res.elemento]);
-        emitir('elemento_creado', res.elemento);
-      }
-      setModal(false);
-    } catch (e) {
-      Alert.alert(
-        e.response?.status === 409 ? 'Ya existe' : 'Error',
-        e.response?.status === 409
-          ? 'Ya hay un elemento con ese nombre.'
-          : 'No se pudo guardar.',
-      );
+  }, [listaId, mutarElemento]);
+
+  const abrirForm = useCallback(
+    (elemento = null) => setForm({ visible: true, elemento }),
+    [],
+  );
+  const cerrarForm = () => setForm((f) => ({ ...f, visible: false }));
+
+  const guardarForm = (datos) => {
+    const editando = form.elemento;
+    const nombre = datos.nombre.toLowerCase();
+    const duplicado = delaLista.some(
+      (e) => e._id !== editando?._id && e.nombre.toLowerCase() === nombre,
+    );
+    if (duplicado) {
+      return Alert.alert('Ya existe', 'Ya hay un elemento con ese nombre.');
     }
+    if (editando) {
+      mutarElemento({
+        tipo: 'editar',
+        elementoId: editando._id,
+        listaId,
+        datos,
+      });
+    } else {
+      mutarElemento({
+        tipo: 'crear',
+        elementoId: nuevoIdTemporal(),
+        listaId,
+        datos: { ...datos, creadoPor: alias },
+      });
+    }
+    cerrarForm();
   };
 
-  const handleMarcarTodos = async () => {
-    try {
-      await marcarTodos(lista._id);
-      setElementos((prev) =>
-        prev.map((e) =>
-          e.lista === lista._id ? { ...e, necesario: true } : e,
-        ),
-      );
-      emitir('todos_marcados', { listaId: lista._id });
-    } catch {}
-  };
+  const handleMarcarTodos = () =>
+    mutarElemento({ tipo: 'marcarTodos', listaId });
 
-  const handleDesmarcarTodos = async () => {
+  const handleDesmarcarTodos = () =>
     Alert.alert('Desmarcar todos', '¿Poner todos como "ya lo tengo"?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Desmarcar',
-        onPress: async () => {
-          try {
-            await desmarcarTodos(lista._id);
-            setElementos((prev) =>
-              prev.map((e) =>
-                e.lista === lista._id ? { ...e, necesario: false } : e,
-              ),
-            );
-            emitir('todos_desmarcados', { listaId: lista._id });
-          } catch {}
-        },
+        onPress: () => mutarElemento({ tipo: 'desmarcarTodos', listaId }),
       },
     ]);
-  };
 
   const toggleCatFiltro = (catId) =>
     setCatsFiltro((prev) =>
       prev.includes(catId) ? prev.filter((c) => c !== catId) : [...prev, catId],
     );
 
-  const catsConElementos = useMemo(() => {
-    const ids = new Set(
-      elementos.filter((e) => e.lista === lista._id).map((e) => e.categoria),
-    );
-    return CATEGORIAS.filter((c) => ids.has(c.id));
-  }, [elementos, lista._id]);
+  const onRefresh = async () => {
+    setRefrescando(true);
+    await recargar();
+    setRefrescando(false);
+  };
 
-  if (cargando)
+  const compartir = useCallback(() => {
+    Share.share({ message: textoCompartir(infoLista, delaLista, orden) });
+  }, [infoLista, delaLista, orden]);
+
+  const toggleModoCompra = useCallback(() => {
+    if (!modoCompra) {
+      setIdsCompra(
+        new Set(delaLista.filter((e) => e.necesario).map((e) => e._id)),
+      );
+    }
+    setModoCompra(!modoCompra);
+  }, [modoCompra, delaLista]);
+
+  // ── Header ───────────────────────────────────────────────
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: `${infoLista.emoji} ${infoLista.nombre}`,
+      headerRight: () => (
+        <View style={s.headerBtns}>
+          <TouchableOpacity style={s.headerBtn} onPress={compartir} hitSlop={8}>
+            <Text style={s.headerBtnText}>📤</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.headerBtn, modoCompra && s.headerBtnActivo]}
+            onPress={toggleModoCompra}
+            hitSlop={8}
+          >
+            <Text style={s.headerBtnText}>🛒</Text>
+          </TouchableOpacity>
+        </View>
+      ),
+    });
+  }, [navigation, infoLista, compartir, toggleModoCompra, modoCompra, s]);
+
+  // ── Render ───────────────────────────────────────────────
+  if (cargandoInicial && delaLista.length === 0) {
     return (
       <View style={[s.container, { justifyContent: 'center' }]}>
         <ActivityIndicator size='large' color={colors.primary} />
       </View>
     );
+  }
+
+  const refreshControl = (
+    <RefreshControl
+      refreshing={refrescando}
+      onRefresh={onRefresh}
+      tintColor={colors.primary}
+      colors={[colors.primary]}
+    />
+  );
+
+  const compraTerminada = modoCompra && pendientes === 0;
 
   return (
     <View style={s.container}>
-      {totalLista.length > 0 && (
-        <View style={s.resumen}>
-          <Text style={s.resumenText}>
-            🛒 <Text style={s.resumenNum}>{pendientes}</Text> de{' '}
-            {totalLista.length} pendientes
+      {modoCompra && <PantallaEncendida />}
+      <EstadoConexion />
+
+      {modoCompra ? (
+        <View style={s.compraBar}>
+          <Text style={s.compraTitulo}>MODO COMPRA</Text>
+          <Text style={s.compraNum}>
+            {progreso.hechos} / {progreso.total} en el carro
           </Text>
+          <View style={s.compraTrack}>
+            <View
+              style={[
+                s.compraFill,
+                {
+                  width: progreso.total
+                    ? `${(progreso.hechos / progreso.total) * 100}%`
+                    : '100%',
+                },
+              ]}
+            />
+          </View>
         </View>
+      ) : (
+        <>
+          {delaLista.length > 0 && (
+            <View style={s.resumen}>
+              <Text style={s.resumenText}>
+                🛒 <Text style={s.resumenNum}>{pendientes}</Text> de{' '}
+                {delaLista.length} pendientes
+              </Text>
+            </View>
+          )}
+
+          <View style={s.searchRow}>
+            <TextInput
+              style={s.search}
+              placeholder='🔍 Buscar elemento...'
+              placeholderTextColor={colors.textMuted}
+              value={buscar}
+              onChangeText={setBuscar}
+            />
+          </View>
+
+          <View style={s.filtersRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.filtersContent}
+            >
+              {FILTROS_NECESARIO.map((f) => (
+                <TouchableOpacity
+                  key={f.id}
+                  style={[
+                    s.filterChip,
+                    filtroNec === f.id && s.filterChipActive,
+                  ]}
+                  onPress={() => setFiltroNec(f.id)}
+                >
+                  <Text
+                    style={[
+                      s.filterChipText,
+                      filtroNec === f.id && s.filterChipTextActive,
+                    ]}
+                  >
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <View style={s.filterDivider} />
+              <TouchableOpacity
+                style={[
+                  s.filterChip,
+                  catsFiltro.length > 0 && s.filterChipActive,
+                ]}
+                onPress={() => setModalFiltro(true)}
+              >
+                <Text
+                  style={[
+                    s.filterChipText,
+                    catsFiltro.length > 0 && s.filterChipTextActive,
+                  ]}
+                >
+                  {catsFiltro.length === 0
+                    ? '🏷️ Categorías'
+                    : `🏷️ ${catsFiltro.length} selec.`}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.filterChip}
+                onPress={() => setOrdenando(catsPresentes)}
+                disabled={catsPresentes.length < 2}
+              >
+                <Text style={s.filterChipText}>↕ Ordenar</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+
+          <View style={s.actionsRow}>
+            <TouchableOpacity style={s.actionChip} onPress={handleMarcarTodos}>
+              <Text style={s.actionChipText}>✅ Marcar todos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.actionChip}
+              onPress={handleDesmarcarTodos}
+            >
+              <Text style={s.actionChipText}>⬜ Desmarcar todos</Text>
+            </TouchableOpacity>
+          </View>
+        </>
       )}
 
-      <View style={s.searchRow}>
-        <TextInput
-          style={s.search}
-          placeholder='🔍 Buscar elemento...'
-          placeholderTextColor={colors.textMuted}
-          value={buscar}
-          onChangeText={setBuscar}
-        />
-      </View>
-
-      <View style={s.filtersRow}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.filtersContent}
-        >
-          {FILTROS_NECESARIO.map((f) => (
-            <TouchableOpacity
-              key={f.id}
-              style={[s.filterChip, filtroNec === f.id && s.filterChipActive]}
-              onPress={() => setFiltroNec(f.id)}
-            >
-              <Text
-                style={[
-                  s.filterChipText,
-                  filtroNec === f.id && s.filterChipTextActive,
-                ]}
-              >
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          <View style={s.filterDivider} />
-          <TouchableOpacity
-            style={[s.filterChip, catsFiltro.length > 0 && s.filterChipActive]}
-            onPress={() => setModalFiltro(true)}
-          >
-            <Text
-              style={[
-                s.filterChipText,
-                catsFiltro.length > 0 && s.filterChipTextActive,
-              ]}
-            >
-              {catsFiltro.length === 0
-                ? '🏷️ Categorías'
-                : `🏷️ ${catsFiltro.length} selec.`}
-            </Text>
+      {compraTerminada ? (
+        <View style={s.finContainer}>
+          <Text style={s.finEmoji}>🎉</Text>
+          <Text style={s.finTitulo}>Compra terminada</Text>
+          <TouchableOpacity style={s.btnApply} onPress={toggleModoCompra}>
+            <Text style={s.btnSaveText}>Salir del modo compra</Text>
           </TouchableOpacity>
-        </ScrollView>
-      </View>
+        </View>
+      ) : (
+        <FlatList
+          data={secciones}
+          keyExtractor={([cat]) => cat}
+          contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
+          refreshControl={refreshControl}
+          ListEmptyComponent={
+            <View style={s.emptyContainer}>
+              <Text style={s.emptyIcon}>🛍️</Text>
+              <Text style={s.emptyText}>
+                {delaLista.length === 0
+                  ? 'No hay elementos.\nAñade el primero con el + 👇'
+                  : 'Nada coincide con los filtros.'}
+              </Text>
+            </View>
+          }
+          renderItem={({ item: [cat, items] }) => (
+            <SeccionCategoria
+              cat={cat}
+              items={items}
+              onToggle={handleToggle}
+              onEdit={abrirForm}
+              onEliminar={handleEliminar}
+              forzarAbierta={Boolean(buscar) || modoCompra}
+              grande={modoCompra}
+            />
+          )}
+        />
+      )}
 
-      <View style={s.actionsRow}>
-        <TouchableOpacity style={s.actionChip} onPress={handleMarcarTodos}>
-          <Text style={s.actionChipText}>✅ Marcar todos</Text>
+      {!modoCompra && (
+        <TouchableOpacity style={s.fab} onPress={() => abrirForm()}>
+          <Text style={s.fabText}>+</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.actionChip} onPress={handleDesmarcarTodos}>
-          <Text style={s.actionChipText}>⬜ Desmarcar todos</Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
-      <FlatList
-        data={secciones}
-        keyExtractor={([cat]) => cat}
-        contentContainerStyle={{ padding: 12, paddingBottom: 100 }}
-        ListEmptyComponent={
-          <View style={s.emptyContainer}>
-            <Text style={s.emptyIcon}>🛍️</Text>
-            <Text style={s.emptyText}>
-              No hay elementos.{'\n'}Añade el primero con el + 👇
-            </Text>
-          </View>
-        }
-        renderItem={({ item: [cat, items] }) => (
-          <SeccionCategoria
-            cat={cat}
-            items={items}
-            colors={colors}
-            onToggle={handleToggle}
-            onEdit={abrirModal}
-            onEliminar={handleEliminar}
-            buscar={buscar}
-          />
-        )}
+      <FiltroCategoriasModal
+        visible={modalFiltro}
+        onClose={() => setModalFiltro(false)}
+        categorias={catsPresentes.map(getCategoriaInfo)}
+        seleccion={catsFiltro}
+        onToggle={toggleCatFiltro}
+        onLimpiar={() => setCatsFiltro([])}
       />
 
-      <TouchableOpacity style={s.fab} onPress={() => abrirModal()}>
-        <Text style={s.fabText}>+</Text>
-      </TouchableOpacity>
+      <OrdenarCategoriasModal
+        visible={ordenando !== null}
+        categorias={ordenando || []}
+        onClose={() => setOrdenando(null)}
+        onGuardar={(nuevas) => setOrden(reordenarPresentes(orden, nuevas))}
+      />
 
-      {/* Modal filtro categorías */}
-      <Modal visible={modalFiltro} transparent animationType='slide'>
-        <View style={s.modalOverlay}>
-          <View style={[s.modalBox, { maxHeight: '80%' }]}>
-            <View style={s.modalHeaderRow}>
-              <Text style={s.modalTitulo}>Filtrar categorías</Text>
-              <View
-                style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}
-              >
-                {catsFiltro.length > 0 && (
-                  <TouchableOpacity onPress={() => setCatsFiltro([])}>
-                    <Text style={s.limpiarFiltro}>Limpiar</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity onPress={() => setModalFiltro(false)}>
-                  <Text style={s.cerrarBtn}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <ScrollView>
-              {catsConElementos.map((c) => {
-                const activa = catsFiltro.includes(c.id);
-                return (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[
-                      s.catRow,
-                      activa && { backgroundColor: colors.primary },
-                    ]}
-                    onPress={() => toggleCatFiltro(c.id)}
-                  >
-                    <Text style={s.catRowEmoji}>{c.emoji}</Text>
-                    <Text
-                      style={[
-                        s.catRowNombre,
-                        activa && { color: '#fff', fontWeight: '800' },
-                      ]}
-                    >
-                      {c.nombre}
-                    </Text>
-                    {activa && <Text style={{ color: '#fff' }}>✓</Text>}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            <TouchableOpacity
-              style={[s.btnApply, { marginTop: 16 }]}
-              onPress={() => setModalFiltro(false)}
-            >
-              <Text style={s.btnSaveText}>Aplicar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal añadir/editar */}
-      <Modal visible={modal} transparent animationType='slide'>
-        <View style={s.modalOverlay}>
-          <ScrollView style={s.modalBox} keyboardShouldPersistTaps='handled'>
-            <View style={s.modalHeaderRow}>
-              <Text style={s.modalTitulo}>
-                {editando ? 'Editar elemento' : 'Añadir elemento'}
-              </Text>
-              <View
-                style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}
-              >
-                <TouchableOpacity onPress={() => setScannerVisible(true)}>
-                  <Text style={{ fontSize: 22 }}>📷</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setModal(false)}>
-                  <Text style={s.cerrarBtn}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <Text style={s.label}>Nombre</Text>
-            <TextInput
-              style={s.input}
-              placeholder='Ej: Leche'
-              placeholderTextColor={colors.textMuted}
-              value={fNombre}
-              onChangeText={setFNombre}
-              autoFocus
-            />
-            {buscandoOFF && (
-              <Text style={{ color: colors.textMuted, marginTop: 6 }}>
-                Buscando producto…
-              </Text>
-            )}
-
-            <Text style={s.label}>Icono</Text>
-            <IconPicker
-              value={fEmoji}
-              onChange={setFEmoji}
-              categoriaEmoji={getCategoriaInfo(fCategoria).emoji}
-              colors={colors}
-            />
-
-            <Text style={s.label}>Categoría</Text>
-            <CategoriaSelector
-              value={fCategoria}
-              onChange={setFCategoria}
-              colors={colors}
-            />
-
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.label}>Cantidad</Text>
-                <TextInput
-                  style={s.input}
-                  value={fCantidad}
-                  onChangeText={setFCantidad}
-                  keyboardType='numeric'
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.label}>Unidad</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View
-                    style={{ flexDirection: 'row', gap: 6, paddingVertical: 4 }}
-                  >
-                    {UNIDADES.map((u) => (
-                      <TouchableOpacity
-                        key={u}
-                        style={[
-                          s.filterChip,
-                          fUnidad === u && s.filterChipActive,
-                        ]}
-                        onPress={() => setFUnidad(u)}
-                      >
-                        <Text
-                          style={[
-                            s.filterChipText,
-                            fUnidad === u && s.filterChipTextActive,
-                          ]}
-                        >
-                          {u}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
-              </View>
-            </View>
-
-            <Text style={s.label}>Notas (opcional)</Text>
-            <TextInput
-              style={s.input}
-              placeholder='Ej: sin lactosa, marca Hacendado...'
-              placeholderTextColor={colors.textMuted}
-              value={fNotas}
-              onChangeText={setFNotas}
-              multiline
-            />
-
-            <View style={s.modalBtns}>
-              <TouchableOpacity
-                style={s.btnCancel}
-                onPress={() => setModal(false)}
-              >
-                <Text style={s.btnCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.btnSave} onPress={guardar}>
-                <Text style={s.btnSaveText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ height: 40 }} />
-          </ScrollView>
-        </View>
-      </Modal>
-
-      <ScannerModal
-        visible={scannerVisible}
-        onClose={() => setScannerVisible(false)}
-        onCodigo={handleCodigo}
-        colors={colors}
+      <ElementoFormModal
+        visible={form.visible}
+        elemento={form.elemento}
+        onClose={cerrarForm}
+        onGuardar={guardarForm}
       />
     </View>
   );
 }
-
-const styles = (c) =>
-  StyleSheet.create({
-    container: { flex: 1, backgroundColor: c.bg },
-    resumen: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
-    resumenText: { fontSize: F.sm, color: c.textSub },
-    resumenNum: { fontWeight: '700', color: c.primary },
-    searchRow: { padding: 12, paddingBottom: 0 },
-    search: {
-      backgroundColor: c.surface,
-      borderWidth: 1.5,
-      borderColor: c.border,
-      borderRadius: 0,
-      padding: 10,
-      fontSize: F.md,
-      color: c.text,
-    },
-    filtersRow: { marginTop: 8 },
-    filtersContent: {
-      paddingHorizontal: 12,
-      gap: 8,
-      alignItems: 'center',
-      paddingVertical: 4,
-    },
-    filterChip: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 0,
-      borderWidth: 1.5,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-    },
-    filterChipActive: { backgroundColor: c.primary, borderColor: c.primary },
-    filterChipText: { fontSize: F.sm, color: c.textSub },
-    filterChipTextActive: { color: '#fff', fontWeight: '600' },
-    filterDivider: { width: 1, height: 24, backgroundColor: c.border },
-    actionsRow: { flexDirection: 'row', gap: 8, padding: 12, paddingTop: 8 },
-    actionChip: {
-      flex: 1,
-      padding: 8,
-      borderRadius: 0,
-      borderWidth: 1.5,
-      borderColor: c.border,
-      alignItems: 'center',
-    },
-    actionChipText: { fontSize: F.sm, color: c.textSub },
-    seccion: { marginBottom: 8 },
-    seccionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 4,
-      borderBottomWidth: 2,
-      borderBottomColor: c.text,
-    },
-    seccionEmoji: { fontSize: F.md, marginRight: 6 },
-    seccionNombre: {
-      flex: 1,
-      fontSize: F.sm,
-      fontWeight: '800',
-      color: c.text,
-      textTransform: 'uppercase',
-      letterSpacing: 0.8,
-    },
-    seccionContador: {
-      fontSize: F.sm,
-      fontWeight: '800',
-      color: c.primary,
-      borderBottomWidth: 2,
-      borderBottomColor: c.primary,
-      marginRight: 6,
-    },
-    seccionContadorVacio: {
-      color: c.textMuted,
-      borderBottomColor: c.textMuted,
-    },
-    seccionArrow: { fontSize: 10, color: c.textMuted },
-    emptyContainer: { alignItems: 'center', marginTop: 80 },
-    emptyIcon: { fontSize: 56, marginBottom: 16 },
-    emptyText: {
-      fontSize: F.md,
-      color: c.textMuted,
-      textAlign: 'center',
-      lineHeight: 26,
-    },
-    fab: {
-      position: 'absolute',
-      bottom: 28,
-      right: 24,
-      width: 58,
-      height: 58,
-      borderRadius: 0,
-      borderWidth: 2,
-      borderColor: c.text,
-      backgroundColor: c.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    fabText: { color: '#fff', fontSize: 30, lineHeight: 34 },
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: '#00000088',
-      justifyContent: 'flex-end',
-    },
-    modalBox: {
-      backgroundColor: c.surface,
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      borderTopWidth: 2,
-      borderColor: c.border,
-      padding: 24,
-      maxHeight: '92%',
-    },
-    modalHeaderRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    modalTitulo: {
-      fontSize: F.lg,
-      fontWeight: '800',
-      letterSpacing: 0.5,
-      color: c.text,
-    },
-    cerrarBtn: { fontSize: F.md, color: c.textMuted, paddingHorizontal: 4 },
-    limpiarFiltro: { color: c.danger, fontSize: F.sm },
-    catRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      borderRadius: 0,
-      marginBottom: 2,
-    },
-    catRowEmoji: { fontSize: F.lg, marginRight: 12 },
-    catRowNombre: { flex: 1, fontSize: F.md, color: c.text },
-    label: {
-      fontSize: F.sm,
-      color: c.textSub,
-      marginBottom: 6,
-      marginTop: 12,
-      fontWeight: '800',
-      letterSpacing: 1,
-      textTransform: 'uppercase',
-    },
-    input: {
-      backgroundColor: c.surfaceAlt,
-      borderWidth: 1.5,
-      borderColor: c.border,
-      borderRadius: 0,
-      padding: 12,
-      fontSize: F.md,
-      color: c.text,
-    },
-    dropdown: {
-      backgroundColor: c.surfaceAlt,
-      borderWidth: 1.5,
-      borderColor: c.border,
-      borderRadius: 0,
-      padding: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    dropdownText: { flex: 1, fontSize: F.md, color: c.text },
-    dropdownArrow: { fontSize: F.sm, color: c.textMuted },
-    modalBtns: { flexDirection: 'row', gap: 12, marginTop: 20 },
-    btnCancel: {
-      flex: 1,
-      padding: 14,
-      borderRadius: 0,
-      borderWidth: 2,
-      borderColor: c.border,
-      alignItems: 'center',
-    },
-    btnCancelText: { fontSize: F.md, color: c.text },
-    btnSave: {
-      flex: 1,
-      padding: 14,
-      borderRadius: 0,
-      backgroundColor: c.primary,
-      alignItems: 'center',
-    },
-    btnApply: {
-      flex: 1,
-      padding: 14,
-      borderRadius: 0,
-      minHeight: 48,
-      backgroundColor: c.primary,
-      alignItems: 'center',
-    },
-    btnSaveText: { fontSize: F.md, color: '#fff', fontWeight: '700' },
-  });
-
-const itemStyles = (c) =>
-  StyleSheet.create({
-    swipeContainer: { borderRadius: 0, overflow: 'hidden' },
-    swipeBg: {
-      position: 'absolute',
-      right: 0,
-      top: 0,
-      bottom: 0,
-      width: 72,
-    },
-    swipeBgTouch: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    swipeBgText: { fontSize: F.lg },
-    item: {
-      backgroundColor: c.surface,
-      borderRadius: 0,
-      borderWidth: 0,
-      borderBottomWidth: 1.5,
-      borderColor: c.border,
-    },
-    itemChecked: { backgroundColor: c.checked, borderColor: c.border },
-    itemMain: { flexDirection: 'row', alignItems: 'center', padding: 12 },
-    itemEmoji: { fontSize: 28, marginRight: 12 },
-    itemInfo: { flex: 1 },
-    itemNombre: { fontSize: F.md, fontWeight: '700', color: c.text },
-    itemNombreChecked: {
-      color: c.checkedText,
-      textDecorationLine: 'line-through',
-    },
-    itemNotas: { fontSize: F.sm, color: c.textMuted, marginTop: 2 },
-    itemRight: { alignItems: 'flex-end', gap: 2 },
-    itemCantidad: { fontSize: F.sm, fontWeight: '600', color: c.textSub },
-    itemAutor: { fontSize: 11, color: c.textMuted },
-    checkmark: {
-      position: 'absolute',
-      right: 12,
-      fontSize: F.md,
-      color: c.primary,
-    },
-  });

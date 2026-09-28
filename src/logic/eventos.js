@@ -65,4 +65,8 @@ export const EVENTOS_ELEMENTOS = [
   'elementos_reordenados',
 ];
 
-export const EVENTOS_LISTAS = ['lista_creada', 'lista_actualizada', 'lista_eliminada'];
+export const EVENTOS_LISTAS = [
+  'lista_creada',
+  'lista_actualizada',
+  'lista_eliminada',
+];

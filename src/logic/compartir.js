@@ -16,11 +16,13 @@ export const textoCompartir = (lista, elementos, orden) => {
   const n = pendientes.length;
   const bloques = agruparPorCategoria(pendientes, orden).map(([cat, items]) => {
     const info = getCategoriaInfo(cat);
-    return [`${info.emoji} ${info.nombre.toUpperCase()}`, ...items.map(linea)].join(
-      '\n',
-    );
+    return [
+      `${info.emoji} ${info.nombre.toUpperCase()}`,
+      ...items.map(linea),
+    ].join('\n');
   });
-  return [`${titulo} — ${n} ${n === 1 ? 'pendiente' : 'pendientes'}`, ...bloques].join(
-    '\n\n',
-  );
+  return [
+    `${titulo} — ${n} ${n === 1 ? 'pendiente' : 'pendientes'}`,
+    ...bloques,
+  ].join('\n\n');
 };

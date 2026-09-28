@@ -10,12 +10,14 @@ let contador = 0;
 const nuevoOpId = () => `${Date.now()}-${contador++}`;
 
 export const nuevoIdTemporal = () => `tmp_${nuevoOpId()}`;
-export const esTemporal = (id) => typeof id === 'string' && id.startsWith('tmp_');
+export const esTemporal = (id) =>
+  typeof id === 'string' && id.startsWith('tmp_');
 
 // Sin respuesta del servidor = no hay red (timeout, DNS, sin cobertura…).
 export const esErrorDeRed = (e) => Boolean(e?.isAxiosError && !e.response);
 
-const esMasivo = (op) => op.tipo === 'marcarTodos' || op.tipo === 'desmarcarTodos';
+const esMasivo = (op) =>
+  op.tipo === 'marcarTodos' || op.tipo === 'desmarcarTodos';
 
 export const encolar = (cola, opSinId, enVuelo = null) => {
   const op = { ...opSinId, opId: nuevoOpId() };
@@ -94,7 +96,9 @@ const aplicarOp = (els, op, listaId) => {
         { _id: op.elementoId, lista: listaId, necesario: true, ...op.datos },
       ];
     case 'editar':
-      return els.map((e) => (e._id === op.elementoId ? { ...e, ...op.datos } : e));
+      return els.map((e) =>
+        e._id === op.elementoId ? { ...e, ...op.datos } : e,
+      );
     case 'toggle':
       return els.map((e) =>
         e._id === op.elementoId ? { ...e, necesario: !e.necesario } : e,
@@ -122,7 +126,8 @@ export const aplicarResultado = (elementos, op, res, listaId) => {
   switch (op.tipo) {
     case 'crear':
       if (!el || el.lista !== listaId) return elementos;
-      if (elementos.some((e) => e._id === el._id)) return reemplazar(elementos, el);
+      if (elementos.some((e) => e._id === el._id))
+        return reemplazar(elementos, el);
       return [...elementos, el];
     case 'editar':
     case 'toggle':

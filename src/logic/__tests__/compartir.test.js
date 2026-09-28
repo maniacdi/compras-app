@@ -7,10 +7,39 @@ const lista = { nombre: 'Mercadona', emoji: '🛒' };
 describe('textoCompartir', () => {
   it('lista los pendientes agrupados por categoría', () => {
     const els = [
-      { _id: '1', categoria: 'frutas', nombre: 'Plátanos', cantidad: 6, unidad: 'ud', necesario: true },
-      { _id: '2', categoria: 'lacteos_huevos', nombre: 'Leche', cantidad: 2, unidad: 'L', notas: 'sin lactosa', necesario: true },
-      { _id: '3', categoria: 'frutas', nombre: 'Peras', cantidad: 1, unidad: 'ud', necesario: false },
-      { _id: '4', categoria: 'frutas', nombre: 'Limón', cantidad: 1, unidad: 'ud', necesario: true },
+      {
+        _id: '1',
+        categoria: 'frutas',
+        nombre: 'Plátanos',
+        cantidad: 6,
+        unidad: 'ud',
+        necesario: true,
+      },
+      {
+        _id: '2',
+        categoria: 'lacteos_huevos',
+        nombre: 'Leche',
+        cantidad: 2,
+        unidad: 'L',
+        notas: 'sin lactosa',
+        necesario: true,
+      },
+      {
+        _id: '3',
+        categoria: 'frutas',
+        nombre: 'Peras',
+        cantidad: 1,
+        unidad: 'ud',
+        necesario: false,
+      },
+      {
+        _id: '4',
+        categoria: 'frutas',
+        nombre: 'Limón',
+        cantidad: 1,
+        unidad: 'ud',
+        necesario: true,
+      },
     ];
     expect(textoCompartir(lista, els, IDS)).toBe(
       [
@@ -34,7 +63,14 @@ describe('textoCompartir', () => {
 
   it('singular con un pendiente', () => {
     const els = [
-      { _id: '1', categoria: 'otros', nombre: 'Pilas', cantidad: 1, unidad: 'ud', necesario: true },
+      {
+        _id: '1',
+        categoria: 'otros',
+        nombre: 'Pilas',
+        cantidad: 1,
+        unidad: 'ud',
+        necesario: true,
+      },
     ];
     expect(textoCompartir(lista, els, IDS).split('\n')[0]).toBe(
       '🛒 Mercadona — 1 pendiente',

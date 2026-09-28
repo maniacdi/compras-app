@@ -3,6 +3,7 @@ import {
   ordenCategorias,
   agruparPorCategoria,
   moverCategoria,
+  reordenarPresentes,
 } from '../orden';
 
 const IDS = CATEGORIAS.map((c) => c.id);
@@ -64,5 +65,24 @@ describe('moverCategoria', () => {
 
   it('índices fuera de rango se acotan', () => {
     expect(moverCategoria(['a', 'b'], 0, 9)).toEqual(['b', 'a']);
+  });
+});
+
+describe('reordenarPresentes', () => {
+  it('coloca las presentes en su nuevo orden sin mover las ausentes', () => {
+    const completo = ['a', 'b', 'c', 'd', 'e'];
+    // presentes: a, c, e → nuevo orden e, a, c
+    expect(reordenarPresentes(completo, ['e', 'a', 'c'])).toEqual([
+      'e',
+      'b',
+      'a',
+      'd',
+      'c',
+    ]);
+  });
+
+  it('sin cambios devuelve el mismo orden', () => {
+    const completo = ['a', 'b', 'c'];
+    expect(reordenarPresentes(completo, ['a', 'c'])).toEqual(completo);
   });
 });

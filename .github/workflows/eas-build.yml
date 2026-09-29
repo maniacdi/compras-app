@@ -1,0 +1,75 @@
+name: EAS Build
+
+# Build nativa en los servidores de Expo. Se lanza sola cuando cambia algo
+# que puede afectar al binario (dependencias o config nativa) y a mano desde
+# la pestaña Actions → EAS Build → Run workflow.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+      - package-lock.json
+      - app.json
+      - eas.json
+      - .npmrc
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Plataforma
+        type: choice
+        options:
+          - android
+          - ios
+          - all
+        default: android
+      profile:
+        description: Perfil de eas.json
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
+
+concurrency:
+  group: eas-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: EAS Build
+    runs-on: ubuntu-latest
+    env:
+      CI: 1
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test -- --ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v9
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # --no-wait: la build sigue en Expo; el enlace/QR aparece en el dashboard.
+      - name: Start build
+        run: |
+          eas build \
+            --platform ${{ inputs.platform || 'android' }} \
+            --profile ${{ inputs.profile || 'preview' }} \
+            --non-interactive \
+            --no-wait
